@@ -227,3 +227,17 @@ This system is being built for **recruiting agencies** as a B2B SaaS product. On
 The MVP is personal. The vision is a platform. Build the MVP right and the platform follows naturally.
 
 *The Dot Connects.*
+
+---
+
+## AUTO-COMMIT RULE
+
+After completing any feature, fix, or meaningful unit of work:
+
+1. Run `./auto-commit.sh` from the project root
+2. If the script doesn't exist, stop and notify the user — do NOT commit manually
+3. Do NOT batch multiple features into one commit
+4. Commit after EACH discrete task is complete
+
+**Custom message:** `./auto-commit.sh "feat(scope): your message"`
+**Auto-message:** `./auto-commit.sh` (detects scope + action from changed files)
