@@ -55,6 +55,9 @@ CREATE TABLE IF NOT EXISTS daily_digests (
     run_date DATE NOT NULL,
     total_discovered INTEGER DEFAULT 0,
     total_scored INTEGER DEFAULT 0,
+    top_picks JSONB,
+    hot_picks JSONB,
+    new_companies TEXT[],
     digest_summary TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );

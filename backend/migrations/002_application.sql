@@ -90,6 +90,32 @@ CREATE TABLE IF NOT EXISTS application_pipelines (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS application_results (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    pipeline_id UUID REFERENCES application_pipelines(id) NOT NULL,
+    job_id UUID REFERENCES discovered_jobs(id) NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    confirmation_number VARCHAR(255),
+    screenshot_path VARCHAR(500),
+    fields_completed JSONB,
+    error TEXT,
+    fallback_url VARCHAR(1000),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS crm_events (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    pipeline_id UUID REFERENCES application_pipelines(id) NOT NULL,
+    candidate_id UUID REFERENCES candidates(id) NOT NULL,
+    job_id UUID REFERENCES discovered_jobs(id) NOT NULL,
+    event_type VARCHAR(100) NOT NULL,
+    details JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS idx_company_intel_name ON company_intel(company_name);
 CREATE INDEX IF NOT EXISTS idx_application_pipelines_status ON application_pipelines(status);
 CREATE INDEX IF NOT EXISTS idx_outreach_emails_job ON outreach_emails(job_id);
+CREATE INDEX IF NOT EXISTS idx_crm_events_pipeline ON crm_events(pipeline_id);
+CREATE INDEX IF NOT EXISTS idx_crm_events_candidate ON crm_events(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_application_results_pipeline ON application_results(pipeline_id);
