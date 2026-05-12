@@ -107,6 +107,12 @@ talent-agent/
 ├── tests/
 │   ├── discovery/
 │   └── application/
+├── deploy/
+│   ├── deploy.sh                ← master deployment script
+│   ├── setup-aws.sh             ← one-time AWS infra bootstrap
+│   ├── ecs-task-def-backend.json
+│   └── ecs-task-def-frontend.json
+├── digital-dash-pipeline.yml    ← Digital Dash CI/CD pipeline config
 ├── docker-compose.yml
 ├── .env.example
 └── requirements.txt

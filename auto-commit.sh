@@ -119,3 +119,56 @@ if git remote get-url origin > /dev/null 2>&1; then
 else
   warn "No remote 'origin' configured — skipping push."
 fi
+
+# ─── Digital Dash Pipeline ────────────────────────────────────────────────
+
+if [[ -f "digital-dash-pipeline.yml" ]]; then
+  echo ""
+  log "Digital Dash pipeline detected"
+
+  # If Digital Dash CLI is installed, trigger the pipeline
+  if command -v digital-dash > /dev/null 2>&1; then
+    log "Triggering Digital Dash pipeline..."
+    digital-dash run --config digital-dash-pipeline.yml --branch "$BRANCH"
+    ok "Pipeline triggered — monitor at Digital Dash dashboard"
+  else
+    # Fallback: run local pipeline simulation on deploy branches
+    if [[ "$BRANCH" == "main" || "$BRANCH" == "develop" || "$BRANCH" == release/* ]]; then
+      log "Digital Dash CLI not installed — running local pipeline check..."
+      log "  Hint: Install with 'pip install digital-dash-cli' when ready"
+      echo ""
+
+      PIPELINE_PASS=true
+
+      log "Pipeline Stage 1: Lint..."
+      if command -v ruff > /dev/null 2>&1; then
+        if ruff check backend/ --quiet 2>/dev/null; then
+          ok "  Lint: PASSED"
+        else
+          warn "  Lint: WARNED (non-blocking)"
+        fi
+      else
+        warn "  Lint: SKIPPED (ruff not installed)"
+      fi
+
+      log "Pipeline Stage 2: Test..."
+      if command -v pytest > /dev/null 2>&1; then
+        if pytest tests/ -q --tb=no 2>/dev/null; then
+          ok "  Tests: PASSED"
+        else
+          echo -e "${RED}  Tests: FAILED${RESET}"
+          PIPELINE_PASS=false
+        fi
+      else
+        warn "  Tests: SKIPPED (pytest not in path)"
+      fi
+
+      echo ""
+      if $PIPELINE_PASS; then
+        ok "Pipeline: GREEN — ready for deployment"
+      else
+        echo -e "${RED}Pipeline: RED — flagged for human review${RESET}"
+      fi
+    fi
+  fi
+fi

@@ -29,6 +29,9 @@ class Settings(BaseSettings):
 
     hunter_api_key: str = ""
 
+    jwt_secret: str = "change-me-in-production"
+    magic_link_expiry_minutes: int = 15
+
     test_candidate_email: str = ""
 
     class Config:

@@ -9,6 +9,7 @@ from backend.config import settings
 from backend.logging_config import configure_logging, logger
 from backend.database import engine, Base
 from backend.api.router import router
+from backend.seed import seed_admin_user
 
 
 @asynccontextmanager
@@ -18,6 +19,8 @@ async def lifespan(app: FastAPI):
     logger.info("talent-agent starting", env=settings.app_env, version=settings.app_version)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    # Auto-seed admin user (Space Cowboy #9) if no users exist
+    await seed_admin_user()
     yield
     logger.info("talent-agent shutting down")
     await engine.dispose()

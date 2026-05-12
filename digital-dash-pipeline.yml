@@ -1,0 +1,249 @@
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║  DIGITAL DASH — Pipeline Configuration                                     ║
+# ║  VibeSpace LLC · The Dot Connector                                         ║
+# ║                                                                            ║
+# ║  This is the canonical pipeline spec for Digital Dash, VibeSpace's         ║
+# ║  AI-native CI/CD platform. Every VibeSpace product uses this format.       ║
+# ║                                                                            ║
+# ║  Rules:                                                                    ║
+# ║    • Green pipeline  → auto-merge                                          ║
+# ║    • Red pipeline    → flag for human review                               ║
+# ║    • Yellow pipeline → warn but continue (non-blocking)                    ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+
+product: talent-agent
+version: "0.1.0"
+team: vibespace-core
+owner: spy@seanyoung.biz
+
+# ─── Environment Variables (injected at runtime) ─────────────────────────────
+# Secrets are pulled from AWS Secrets Manager, never stored in this file.
+env:
+  AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: "${AWS_ACCOUNT_ID}"
+  ECR_REGISTRY: "${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com"
+  ECR_REPO_BACKEND: talent-agent-backend
+  ECR_REPO_FRONTEND: talent-agent-frontend
+  ECS_CLUSTER: vibespace-prod
+  ECS_SERVICE_BACKEND: talent-agent-backend
+  ECS_SERVICE_FRONTEND: talent-agent-frontend
+  STAGING_URL: "https://staging.talent-agent.seanyoung.biz"
+  PROD_URL: "https://talent-agent.seanyoung.biz"
+
+# ─── Triggers ────────────────────────────────────────────────────────────────
+triggers:
+  push:
+    branches: [main, develop, "release/*"]
+  pull_request:
+    branches: [main]
+  manual:
+    enabled: true
+    description: "Manually trigger a full pipeline run"
+
+# ─── Pipeline Stages ────────────────────────────────────────────────────────
+# Stages run sequentially. Steps within a stage run concurrently by default.
+# A failed stage halts the pipeline and flags for human review.
+#
+# Stage lifecycle:  QUEUED → RUNNING → PASSED | FAILED | WARNED
+# Pipeline result:  All PASSED → green (auto-merge)
+#                   Any FAILED → red (human review)
+#                   Any WARNED → yellow (continue, notify)
+
+stages:
+
+  # ── Stage 1: Lint & Static Analysis ──────────────────────────────────────
+  - name: lint
+    display: "Lint & Analysis"
+    steps:
+      - name: python-lint
+        run: |
+          pip install ruff
+          ruff check backend/ --output-format=github
+          ruff format backend/ --check
+        on_fail: block
+
+      - name: frontend-lint
+        run: |
+          cd frontend
+          npm ci
+          npm run lint
+        on_fail: block
+
+      - name: security-scan
+        run: |
+          pip install bandit safety
+          bandit -r backend/ -ll -q
+          safety check --file=requirements.txt
+        on_fail: warn  # Non-blocking — notify but don't halt
+
+  # ── Stage 2: Test ────────────────────────────────────────────────────────
+  - name: test
+    display: "Test Suite"
+    services:
+      - name: postgres
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: talent_agent_test
+          POSTGRES_USER: talent_agent
+          POSTGRES_PASSWORD: test_password
+        health_check: "pg_isready -U talent_agent"
+
+      - name: redis
+        image: redis:7-alpine
+        health_check: "redis-cli ping"
+
+    steps:
+      - name: backend-tests
+        env:
+          DATABASE_URL: "postgresql+asyncpg://talent_agent:test_password@postgres:5432/talent_agent_test"
+          REDIS_URL: "redis://redis:6379/0"
+          ANTHROPIC_API_KEY: "test-key"
+          APP_ENV: "test"
+          DEBUG: "false"
+        run: |
+          pip install -r requirements.txt
+          python -m pytest tests/ -v --tb=short --junitxml=reports/test-results.xml
+        artifacts:
+          - reports/test-results.xml
+        on_fail: block
+
+      - name: frontend-tests
+        run: |
+          cd frontend
+          npm ci
+          npm run build  # Build validates TypeScript/JSX compilation
+        on_fail: block
+
+  # ── Stage 3: Build ───────────────────────────────────────────────────────
+  - name: build
+    display: "Build & Push Images"
+    only:
+      branches: [main, "release/*"]
+    steps:
+      - name: build-backend
+        run: |
+          IMAGE="${ECR_REGISTRY}/${ECR_REPO_BACKEND}"
+          GIT_SHA=$(git rev-parse --short HEAD)
+          docker build -t ${IMAGE}:${GIT_SHA} -t ${IMAGE}:latest -f Dockerfile .
+          aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+          docker push ${IMAGE}:${GIT_SHA}
+          docker push ${IMAGE}:latest
+        outputs:
+          BACKEND_IMAGE_TAG: "${GIT_SHA}"
+        on_fail: block
+
+      - name: build-frontend
+        run: |
+          IMAGE="${ECR_REGISTRY}/${ECR_REPO_FRONTEND}"
+          GIT_SHA=$(git rev-parse --short HEAD)
+          docker build -t ${IMAGE}:${GIT_SHA} -t ${IMAGE}:latest -f frontend/Dockerfile frontend/
+          aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+          docker push ${IMAGE}:${GIT_SHA}
+          docker push ${IMAGE}:latest
+        outputs:
+          FRONTEND_IMAGE_TAG: "${GIT_SHA}"
+        on_fail: block
+
+  # ── Stage 4: Deploy to Staging ───────────────────────────────────────────
+  - name: deploy-staging
+    display: "Deploy → Staging"
+    only:
+      branches: [main, "release/*"]
+    steps:
+      - name: deploy-backend-staging
+        run: |
+          ./deploy/deploy.sh staging backend ${BACKEND_IMAGE_TAG}
+        on_fail: block
+
+      - name: deploy-frontend-staging
+        run: |
+          ./deploy/deploy.sh staging frontend ${FRONTEND_IMAGE_TAG}
+        on_fail: block
+
+  # ── Stage 5: Health Check ────────────────────────────────────────────────
+  - name: health-check
+    display: "Staging Health Check"
+    only:
+      branches: [main, "release/*"]
+    steps:
+      - name: api-health
+        run: |
+          echo "Waiting for staging to stabilize..."
+          sleep 15
+          for i in 1 2 3 4 5; do
+            STATUS=$(curl -sf "${STAGING_URL}/health" | jq -r '.status' 2>/dev/null || echo "down")
+            if [ "$STATUS" = "ok" ]; then
+              echo "Staging is healthy ✓"
+              exit 0
+            fi
+            echo "Attempt $i: status=$STATUS — retrying in 10s..."
+            sleep 10
+          done
+          echo "Staging health check failed after 5 attempts"
+          exit 1
+        on_fail: block
+
+      - name: smoke-test
+        run: |
+          # Verify key endpoints respond
+          curl -sf "${STAGING_URL}/api/v1/auth/me" -o /dev/null -w "%{http_code}" | grep -q "401" || exit 1
+          echo "Auth endpoint responding ✓"
+          curl -sf "${STAGING_URL}/health" | jq -e '.version' || exit 1
+          echo "Health endpoint with version ✓"
+        on_fail: warn
+
+  # ── Stage 6: Deploy to Production ────────────────────────────────────────
+  - name: deploy-prod
+    display: "Deploy → Production"
+    only:
+      branches: [main]
+    gate:
+      type: manual
+      approvers: [spy@seanyoung.biz]
+      message: "Staging is green. Approve production deployment?"
+      timeout: 24h
+    steps:
+      - name: deploy-backend-prod
+        run: |
+          ./deploy/deploy.sh prod backend ${BACKEND_IMAGE_TAG}
+        on_fail: block
+
+      - name: deploy-frontend-prod
+        run: |
+          ./deploy/deploy.sh prod frontend ${FRONTEND_IMAGE_TAG}
+        on_fail: block
+
+      - name: verify-prod
+        run: |
+          sleep 15
+          STATUS=$(curl -sf "${PROD_URL}/health" | jq -r '.status' 2>/dev/null || echo "down")
+          if [ "$STATUS" != "ok" ]; then
+            echo "PRODUCTION HEALTH CHECK FAILED — triggering rollback"
+            ./deploy/deploy.sh prod backend --rollback
+            ./deploy/deploy.sh prod frontend --rollback
+            exit 1
+          fi
+          echo "Production is healthy ✓"
+        on_fail: block
+
+# ─── Notifications ────────────────────────────────────────────────────────────
+notifications:
+  on_success:
+    - channel: stdout
+      message: "✅ Pipeline green — ${product} ${version} deployed"
+  on_failure:
+    - channel: stdout
+      message: "🔴 Pipeline failed at stage: ${failed_stage} — flagged for human review"
+  on_warn:
+    - channel: stdout
+      message: "⚠️ Pipeline passed with warnings in: ${warned_stages}"
+
+# ─── Metadata ─────────────────────────────────────────────────────────────────
+metadata:
+  framework: vibespace-framework
+  created: "2026-04-03"
+  spec_version: "1.0.0"
+  description: >
+    Full CI/CD pipeline for Talent Agent. Runs lint, test, build Docker images,
+    deploy to staging with health checks, then production with manual gate and
+    automatic rollback on failure.

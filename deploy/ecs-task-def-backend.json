@@ -1,0 +1,71 @@
+{
+  "family": "talent-agent-backend",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/talent-agent-task-role",
+  "containerDefinitions": [
+    {
+      "name": "talent-agent-backend",
+      "image": "${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/talent-agent-backend:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 15
+      },
+      "environment": [
+        { "name": "APP_ENV", "value": "production" },
+        { "name": "APP_NAME", "value": "talent-agent" },
+        { "name": "DEBUG", "value": "false" },
+        { "name": "MIN_SCORE", "value": "60" },
+        { "name": "MAX_JOBS_PER_RUN", "value": "500" },
+        { "name": "CRAWL_CONCURRENCY", "value": "5" },
+        { "name": "DISCOVERY_CRON", "value": "0 7 * * *" },
+        { "name": "MAX_PARALLEL_APPLICATIONS", "value": "3" },
+        { "name": "AUTO_APPLY_ENABLED", "value": "false" },
+        { "name": "OUTREACH_ENABLED", "value": "false" }
+      ],
+      "secrets": [
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:${AWS_ACCOUNT_ID}:secret:talent-agent/database-url"
+        },
+        {
+          "name": "REDIS_URL",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:${AWS_ACCOUNT_ID}:secret:talent-agent/redis-url"
+        },
+        {
+          "name": "ANTHROPIC_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:${AWS_ACCOUNT_ID}:secret:talent-agent/anthropic-api-key"
+        },
+        {
+          "name": "JWT_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:${AWS_ACCOUNT_ID}:secret:talent-agent/jwt-secret"
+        },
+        {
+          "name": "HUNTER_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:${AWS_ACCOUNT_ID}:secret:talent-agent/hunter-api-key"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/talent-agent-backend",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}

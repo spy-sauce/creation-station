@@ -1,23 +1,47 @@
-FROM python:3.12-slim
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║  Talent Agent — Backend Dockerfile                                         ║
+# ║  VibeSpace LLC · Multi-stage build for production                          ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+
+# ── Stage 1: Dependencies ────────────────────────────────────────────────────
+FROM python:3.12-slim AS deps
 
 WORKDIR /app
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# ── Stage 2: Playwright (heavy — cached separately) ─────────────────────────
+FROM deps AS playwright
+
 RUN playwright install chromium --with-deps
 
-COPY . .
+# ── Stage 3: Production image ───────────────────────────────────────────────
+FROM playwright AS production
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV APP_ENV=production
+
+WORKDIR /app
+
+COPY backend/ ./backend/
+
+# Health check for ECS
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 8000
 
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Gunicorn with uvicorn workers for production
+CMD ["python", "-m", "uvicorn", "backend.main:app", \
+     "--host", "0.0.0.0", "--port", "8000", \
+     "--workers", "4", "--loop", "uvloop", \
+     "--access-log"]
