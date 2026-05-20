@@ -8,6 +8,31 @@
 
 ---
 
+## Stack-canon override (READ FIRST — supersedes preset)
+
+This repo cultivates with `--stack nextjs-fastapi-supabase` because no `fastapi-postgres` preset exists yet in `legendary-funicular`. The preset's contract appendix (Section H, security rules) is **wrong for this stack** in three specific ways. When the preset and this brief conflict, **§Stack and this override block win — always.**
+
+**Negated rules (do NOT enforce, do NOT generate code that satisfies them):**
+
+- **H.1.3 (`NEXT_PUBLIC_` prefix enforcement) — NEGATED.** This repo's frontend is **React 19 + Vite 8**, not Next.js. Env vars use the **`VITE_*`** prefix per Vite's `import.meta.env` convention. Any leaf generating `NEXT_PUBLIC_*` references is wrong.
+- **H.2.1 (httpOnly cookies, never localStorage) — NEGATED.** JWT storage is **localStorage** per iter-2's resolved open question. The `AuthContext` reads/writes `localStorage` directly and sets a `Bearer` header in `lib/api.js`. Do NOT migrate to httpOnly cookies. Do NOT add `Set-Cookie` headers to `backend/api/auth.py`.
+- **H.3.1 (every Supabase table has `ENABLE ROW LEVEL SECURITY`) — NEGATED.** This repo uses **raw PostgreSQL 15 via SQLAlchemy 2.0 async + Alembic**. There is no Supabase, no `supabase-py`, no `@supabase/supabase-js`. Migrations are SQL files at `backend/migrations/000–003_*.sql`. RLS is a Supabase-specific construct that does not apply.
+
+**Positive stack canon (this is the real stack — generate code for THIS):**
+
+- **Frontend:** React 19 · Vite 8 · Tailwind 4 · lucide-react · react-router-dom 7. NOT Next.js. No App Router. No Server Components. No Server Actions. No Route Handlers. Pages live at `frontend/src/pages/*.jsx`, components at `frontend/src/components/*.jsx`.
+- **Backend:** FastAPI · Python 3.12 · Pydantic v2 · SQLAlchemy 2.0 async · Alembic. NOT a Next.js API route runtime. Routes live at `backend/api/*.py` and mount under `/api/v1`.
+- **Database:** PostgreSQL 15 raw, accessed via SQLAlchemy async engine in `backend/database.py`. NOT Supabase. No `supabase-py` import. No `from supabase import create_client`. No RLS policies.
+- **Auth:** JWT `HS256`, 7d, stored in `localStorage`, sent as `Authorization: Bearer <token>`. Magic-link via Resend. NOT Supabase Auth. NOT NextAuth. NOT cookie-based sessions.
+- **Storage:** Local FS during dev; S3 in prod (future). NOT Supabase Storage.
+- **Env vars:** `VITE_*` for frontend (`import.meta.env.VITE_API_BASE_URL`), unprefixed for backend (loaded via `backend/config.py` Pydantic Settings from `.env`). NOT `NEXT_PUBLIC_*`. NOT `process.env` in client components.
+
+**Run protocol:** cultivation runs with `--skip-audit` so the preset's freeze gate (RLS check, localStorage check) doesn't kill the freeze step. The override above is the canonical contract; the audit's absence is intentional, not an emergency bypass.
+
+**For every leaf:** before generating any frontend or auth code, re-read this block. If your output references Next.js, Supabase client, RLS, httpOnly cookies, or `NEXT_PUBLIC_*`, it is wrong for this stack regardless of what the preset's contract appendix says.
+
+---
+
 ## What changed since iter-2
 
 Two streams of change since the iter-2 brief was written:
@@ -293,8 +318,11 @@ mycelium ddp \
   --stack nextjs-fastapi-supabase \
   --security startup \
   --concurrency 4 \
-  --threshold 0.8
+  --threshold 0.8 \
+  --skip-audit
 ```
+
+**`--skip-audit` is REQUIRED, not an emergency bypass.** The `nextjs-fastapi-supabase` preset's Section H rules conflict with this repo's real stack (raw Postgres + Vite + localStorage JWT). See the "Stack-canon override" block at the top of this brief for the negated rules and the positive canon. The override block IS the contract; the preset's audit appendix is wrong for this stack. Future iteration: land a `fastapi-postgres` preset in legendary-funicular, then drop `--skip-audit`.
 
 **Concurrency = 4, NOT 30.** Per `legendary-funicular/HANDOFF.md` 2026-05-16: `-c 30` hit Anthropic rate-limits on every leaf, $17 burned, zero output. `-c 4` shipped 43/43 in 17.6 min by letting the token bucket recover between batches and warming the prompt cache. Cache-network (default ON) further reduces token spend on retries.
 
