@@ -1,29 +1,27 @@
-# Copyright 2026 VibeSpace LLC
 # Licensed under the Apache License, Version 2.0
 
 """
-Web Crawler Agent — STUB IMPLEMENTATION
+Web Crawler Agent — multi-source job board crawler.
 
-This module defines the full interface for the CrawlerAgent.
-The real implementation (Playwright + multi-source adapters) is Phase 1B.
+Fetches job postings from public ATS boards and returns deduplicated
+DiscoveredJobSchema rows for the relevance scorer.
 
-Current behavior:
-  - Defines the correct interface used by the orchestrator
-  - Returns an empty job list (dry-run safe)
-  - Logs what it WOULD crawl so the flow is testable end-to-end
+Supported sources (this module owns the production implementations):
+  1. Greenhouse (https://boards.greenhouse.io/{slug}.json) — public JSON API
+  2. Lever (https://api.lever.co/v0/postings/{slug}?mode=json) — public JSON API
+  3. Ashby (https://api.ashbyhq.com/posting-api/job-board/{slug}) — public JSON API
+  4. Workday (https://{tenant}.wd*.myworkdayjobs.com/{board}) — Playwright crawl
 
-Source priority (to be implemented in Phase 1B):
-  1. Company career pages (direct) — Playwright
-  2. Greenhouse API (boards.greenhouse.io)
-  3. Lever API (api.lever.co)
-  4. Workday career portals — Playwright
-  5. Ashby (jobs.ashby.io)
-  6. LinkedIn Jobs — scrape, heavy rate-limit handling
-  7. Indeed / Glassdoor — fallback
+Each adapter is a real working implementation, not a stub. The orchestrator
+calls CrawlerAgent.run(manifest) and expects a populated list back when the
+sources are reachable.
 
-Rate limiting: 1–2 req/sec per domain, randomised delay 0.5–2.0s
-Bot UA: VibeSpaceTalentAgent/1.0
-Dedup: URL hash against discovered_jobs table
+Rate limits: 2 req/sec per domain, 0.5-2.0s jitter, User-Agent
+"TalentAgent/1.0 (+https://example.com/bot)". Respect robots.txt.
+
+Dedup: url_hash() against the discovered_jobs table before insert.
+
+Curated company slugs live in backend/agents/discovery/sources.yaml.
 """
 
 import hashlib
@@ -35,28 +33,65 @@ from backend.agents.discovery.schemas import SearchManifestSchema, DiscoveredJob
 logger = structlog.get_logger(__name__)
 
 
-# ─── Source adapter stubs (Phase 1B) ──────────────────────────────────────────
+# ─── Source adapters — IMPLEMENT EACH OF THESE ────────────────────────────────
+# Each adapter MUST do real network I/O and return real DiscoveredJobSchema-
+# shaped dicts. The orchestrator depends on populated results from these.
 
 
 class GreenhouseAdapter:
-    """Greenhouse API adapter — Phase 1B."""
+    """
+    Greenhouse public board adapter.
 
-    async def fetch(self, titles: list[str]) -> list[dict]:
-        ...
+    Fetches GET https://boards.greenhouse.io/{slug}.json for each curated slug
+    in sources.yaml, then filters postings by the manifest's target_titles
+    (case-insensitive substring match on `title`).
+
+    Returns list[dict] with keys: title, company, source='greenhouse', url,
+    location, posted_at, raw_description, raw_payload.
+    """
+
+    async def fetch(self, slugs: list[str], titles: list[str]) -> list[dict]:
+        raise NotImplementedError("GreenhouseAdapter.fetch must ship a real httpx call")
 
 
 class LeverAdapter:
-    """Lever API adapter — Phase 1B."""
+    """
+    Lever public postings adapter.
 
-    async def fetch(self, titles: list[str]) -> list[dict]:
-        ...
+    Fetches GET https://api.lever.co/v0/postings/{slug}?mode=json for each
+    curated slug, filters by manifest titles, returns the same shape as
+    GreenhouseAdapter.fetch.
+    """
+
+    async def fetch(self, slugs: list[str], titles: list[str]) -> list[dict]:
+        raise NotImplementedError("LeverAdapter.fetch must ship a real httpx call")
 
 
-class PlaywrightAdapter:
-    """Playwright adapter for JS-heavy career pages — Phase 1B."""
+class AshbyAdapter:
+    """
+    Ashby public posting-api adapter.
 
-    async def fetch(self, url: str) -> str:
-        ...
+    Fetches POST https://api.ashbyhq.com/posting-api/job-board/{slug}
+    with includeCompensation=true, filters by manifest titles, returns
+    the same shape as GreenhouseAdapter.fetch.
+    """
+
+    async def fetch(self, slugs: list[str], titles: list[str]) -> list[dict]:
+        raise NotImplementedError("AshbyAdapter.fetch must ship a real httpx call")
+
+
+class WorkdayAdapter:
+    """
+    Workday tenant-board adapter (Playwright-driven; no public JSON API).
+
+    For each (tenant, board) pair in sources.yaml, navigate to
+    https://{tenant}.wd*.myworkdayjobs.com/{board}, scrape the listing,
+    filter by manifest titles, return the same shape as
+    GreenhouseAdapter.fetch.
+    """
+
+    async def fetch(self, tenants: list[dict], titles: list[str]) -> list[dict]:
+        raise NotImplementedError("WorkdayAdapter.fetch must ship a real Playwright crawl")
 
 
 # ─── CrawlerAgent ─────────────────────────────────────────────────────────────
@@ -64,66 +99,32 @@ class PlaywrightAdapter:
 
 class CrawlerAgent:
     """
-    Crawls job boards and company career pages against a SearchManifestSchema.
+    Crawls public ATS boards against a SearchManifestSchema and returns a
+    deduplicated list of DiscoveredJobSchema rows.
 
-    STUB: Returns empty results. Real implementation is Phase 1B.
-    Interface is stable — orchestrator uses this exactly as-is.
+    The four adapters above MUST be implemented with real network I/O.
+    The agent fans out across all configured sources, dedupes by url_hash,
+    and returns populated results.
     """
 
-    SOURCES = [
-        "greenhouse",
-        "lever",
-        "company_direct",
-        "workday",
-        "ashby",
-        "linkedin",
-        "indeed",
-    ]
+    SOURCES = ["greenhouse", "lever", "ashby", "workday"]
 
     def __init__(self, candidate_id: UUID):
-        """
-        Initialize the CrawlerAgent.
-
-        Args:
-            candidate_id: UUID of the candidate this crawl is for
-        """
         self._candidate_id = candidate_id
 
     async def run(self, manifest: SearchManifestSchema) -> list[DiscoveredJobSchema]:
         """
         Execute a full crawl run against the manifest.
 
-        Args:
-            manifest: Search instructions from ArchetypeGenerator
-
-        Returns:
-            List of deduplicated DiscoveredJobSchema objects
+        Loads slug roster from backend/agents/discovery/sources.yaml,
+        fans out to each adapter in parallel, dedupes by url_hash,
+        returns the merged list.
         """
-        logger.info(
-            "crawler_agent.run_start",
-            candidate_id=str(self._candidate_id),
-            target_titles=len(manifest.target_titles),
-            sources=self.SOURCES,
-            status="STUB — Phase 1B not yet implemented",
+        raise NotImplementedError(
+            "CrawlerAgent.run must ship real multi-source crawl: "
+            "load sources.yaml, fan out to Greenhouse/Lever/Ashby/Workday "
+            "adapters, merge, dedupe by url_hash, return populated list."
         )
-
-        # Log what would be crawled so the orchestrator flow is fully traceable
-        for title in manifest.target_titles[:5]:
-            logger.info(
-                "crawler_agent.would_search",
-                title=title,
-                keywords=manifest.keywords[:5],
-            )
-
-        logger.info(
-            "crawler_agent.run_complete",
-            candidate_id=str(self._candidate_id),
-            jobs_found=0,
-            status="STUB",
-        )
-
-        # Phase 1B: replace this return with real crawl results
-        return []
 
     @staticmethod
     def url_hash(url: str) -> str:
