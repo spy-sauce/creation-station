@@ -11,7 +11,7 @@ Aligns with NUTRIENTS.md DATA_CONTRACTS.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 from uuid import UUID
 
 from pydantic import BaseModel, Field, ConfigDict, computed_field
@@ -57,17 +57,24 @@ class IdentityProfileSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     archetypes: list[str] = Field(default_factory=list)
+    archetype_tags: list[str] = Field(default_factory=list)  # Alias for agents
     leadership_level: str = Field(
         default="IC",
         description="IC | Lead | Manager | Director | VP | C-Level",
     )
-    technical_skills: list[str] = Field(default_factory=list)
+    technical_skills: Union[dict[str, int], list[str]] = Field(default_factory=dict)
     soft_skills: list[str] = Field(default_factory=list)
+    domain_expertise: list[str] = Field(default_factory=list)
     industry_experience: list[str] = Field(default_factory=list)
     notable_achievements: list[str] = Field(default_factory=list)
     career_trajectory: str = ""
     ideal_role_description: str = ""
+    creative_layer: list[str] = Field(default_factory=list)
     signals: dict[str, str] = Field(default_factory=dict)
+
+
+# Alias for backward compatibility
+IdentityProfile = IdentityProfileSchema
 
 
 # ─── Search Manifest ─────────────────────────────────────────────────────────

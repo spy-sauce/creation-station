@@ -28,6 +28,7 @@ from backend.database import Base
 
 # ─── Enums ───────────────────────────────────────────────────────────────────
 
+
 class ApplicationPipelineStatus(str, enum.Enum):
     """Application pipeline state machine."""
     QUEUED = "QUEUED"
@@ -62,6 +63,7 @@ class OutreachStatus(str, enum.Enum):
 
 # ─── Parsed JD ───────────────────────────────────────────────────────────────
 
+
 class ParsedJD(Base):
     """Cached structured parse of a job description."""
 
@@ -82,17 +84,19 @@ class ParsedJD(Base):
         ARRAY(String), server_default="{}", nullable=False
     )
     seniority_level: Mapped[Optional[str]] = mapped_column(String(100))
+    team_context: Mapped[Optional[str]] = mapped_column(Text)
+    key_responsibilities: Mapped[list[str]] = mapped_column(
+        ARRAY(String), server_default="{}", nullable=False
+    )
+    culture_signals: Mapped[Optional[dict]] = mapped_column(
+        JSONB, server_default="{}", nullable=False
+    )
     tech_stack: Mapped[list[str]] = mapped_column(
         ARRAY(String), server_default="{}", nullable=False
     )
-    culture_signals: Mapped[list[str]] = mapped_column(
-        ARRAY(String), server_default="{}", nullable=False
-    )
+    pain_points: Mapped[Optional[str]] = mapped_column(Text)
     tone: Mapped[Optional[str]] = mapped_column(String(50))
-    pain_points: Mapped[list[str]] = mapped_column(
-        ARRAY(String), server_default="{}", nullable=False
-    )
-    compensation_range: Mapped[Optional[str]] = mapped_column(String(255))
+    comp_mentioned: Mapped[Optional[str]] = mapped_column(String(255))
     red_flags: Mapped[list[str]] = mapped_column(
         ARRAY(String), server_default="{}", nullable=False
     )
@@ -107,6 +111,7 @@ class ParsedJD(Base):
 
 # ─── Application Pipeline ────────────────────────────────────────────────────
 
+
 class ApplicationPipeline(Base):
     """Full pipeline state for a single job application."""
 
@@ -119,18 +124,20 @@ class ApplicationPipeline(Base):
         ForeignKey("candidates.id", ondelete="CASCADE"), nullable=False
     )
     job_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("scored_jobs.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("discovered_jobs.id", ondelete="CASCADE"), nullable=False
     )
-    status: Mapped[ApplicationPipelineStatus] = mapped_column(
-        Enum(ApplicationPipelineStatus, name="application_pipeline_status", create_type=False),
+    status: Mapped[str] = mapped_column(
+        String(50),
         server_default="QUEUED",
         nullable=False,
     )
+    current_step: Mapped[Optional[str]] = mapped_column(String(100))
     approval_timestamp: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     submitted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     screenshots: Mapped[list[str]] = mapped_column(
         ARRAY(String), server_default="{}", nullable=False
     )
+    resume_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -158,6 +165,7 @@ class ApplicationPipeline(Base):
 
 # ─── Tailored Resume ─────────────────────────────────────────────────────────
 
+
 class TailoredResume(Base):
     """Version-controlled tailored resume for a specific job application."""
 
@@ -166,54 +174,58 @@ class TailoredResume(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    pipeline_id: Mapped[uuid.UUID] = mapped_column(
+    pipeline_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("application_pipelines.id", ondelete="CASCADE"),
-        unique=True,
-        nullable=False,
+        nullable=True,
     )
-    original_text: Mapped[str] = mapped_column(Text, nullable=False)
-    tailored_text: Mapped[str] = mapped_column(Text, nullable=False)
-    change_log: Mapped[list[str]] = mapped_column(
-        ARRAY(String), server_default="{}", nullable=False
-    )
+    job_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    candidate_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    original_text: Mapped[str] = mapped_column(Text, server_default="", nullable=False)
+    tailored_text: Mapped[str] = mapped_column(Text, server_default="", nullable=False)
+    summary: Mapped[str] = mapped_column(Text, server_default="", nullable=False)
+    full_text: Mapped[str] = mapped_column(Text, server_default="", nullable=False)
+    change_log: Mapped[str] = mapped_column(Text, server_default="", nullable=False)
     gap_analysis: Mapped[Optional[str]] = mapped_column(Text)
+    version: Mapped[int] = mapped_column(Integer, server_default="1", nullable=False)
+    pdf_path: Mapped[Optional[str]] = mapped_column(String(500))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
     # Relationships
-    pipeline: Mapped["ApplicationPipeline"] = relationship(back_populates="tailored_resume")
+    pipeline: Mapped[Optional["ApplicationPipeline"]] = relationship(
+        back_populates="tailored_resume"
+    )
 
 
 # ─── Company Intel ───────────────────────────────────────────────────────────
 
+
 class CompanyIntel(Base):
-    """Cached company research for a pipeline."""
+    """Cached company research for a pipeline or standalone cache."""
 
     __tablename__ = "company_intel"
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    pipeline_id: Mapped[uuid.UUID] = mapped_column(
+    pipeline_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("application_pipelines.id", ondelete="CASCADE"),
-        unique=True,
-        nullable=False,
+        nullable=True,
     )
     company_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    domain: Mapped[Optional[str]] = mapped_column(String(255))
     about: Mapped[Optional[str]] = mapped_column(Text)
-    recent_news: Mapped[list[str]] = mapped_column(
-        ARRAY(String), server_default="{}", nullable=False
-    )
+    recent_news: Mapped[Optional[str]] = mapped_column(Text)
     tech_stack: Mapped[list[str]] = mapped_column(
         ARRAY(String), server_default="{}", nullable=False
     )
     engineering_culture: Mapped[Optional[str]] = mapped_column(Text)
+    glassdoor_signals: Mapped[Optional[str]] = mapped_column(Text)
     growth_stage: Mapped[Optional[str]] = mapped_column(String(100))
     team_size: Mapped[Optional[str]] = mapped_column(String(100))
-    notable_facts: Mapped[list[str]] = mapped_column(
-        ARRAY(String), server_default="{}", nullable=False
-    )
+    notable_facts: Mapped[Optional[str]] = mapped_column(Text)
+    cache_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     researched_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -225,10 +237,13 @@ class CompanyIntel(Base):
     )
 
     # Relationships
-    pipeline: Mapped["ApplicationPipeline"] = relationship(back_populates="company_intel")
+    pipeline: Mapped[Optional["ApplicationPipeline"]] = relationship(
+        back_populates="company_intel"
+    )
 
 
 # ─── Contact ─────────────────────────────────────────────────────────────────
+
 
 class Contact(Base):
     """A contact person discovered for a company."""
@@ -238,15 +253,16 @@ class Contact(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    pipeline_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("application_pipelines.id", ondelete="CASCADE"), nullable=False
+    pipeline_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("application_pipelines.id", ondelete="CASCADE"), nullable=True
     )
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    title: Mapped[str] = mapped_column(String(255), nullable=False)
-    email: Mapped[str] = mapped_column(String(255), nullable=False)
+    company_intel_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    name: Mapped[Optional[str]] = mapped_column(String(255))
+    title: Mapped[Optional[str]] = mapped_column(String(255))
+    email: Mapped[Optional[str]] = mapped_column(String(255))
     linkedin_url: Mapped[Optional[str]] = mapped_column(String(500))
-    confidence: Mapped[ContactConfidence] = mapped_column(
-        Enum(ContactConfidence, name="contact_confidence", create_type=False),
+    confidence: Mapped[str] = mapped_column(
+        String(20),
         server_default="LOW",
         nullable=False,
     )
@@ -260,10 +276,13 @@ class Contact(Base):
     )
 
     # Relationships
-    pipeline: Mapped["ApplicationPipeline"] = relationship(back_populates="contacts")
+    pipeline: Mapped[Optional["ApplicationPipeline"]] = relationship(
+        back_populates="contacts"
+    )
 
 
 # ─── Outreach Email ──────────────────────────────────────────────────────────
+
 
 class OutreachEmail(Base):
     """Draft outreach email — moves to SENT only after Review Dashboard approval."""
@@ -273,17 +292,21 @@ class OutreachEmail(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    pipeline_id: Mapped[uuid.UUID] = mapped_column(
+    pipeline_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("application_pipelines.id", ondelete="CASCADE"),
-        unique=True,
-        nullable=False,
+        nullable=True,
     )
-    subject_lines: Mapped[list[str]] = mapped_column(
+    job_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    candidate_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    subject: Mapped[str] = mapped_column(String(500), server_default="", nullable=False)
+    subject_variants: Mapped[list[str]] = mapped_column(
         ARRAY(String), server_default="{}", nullable=False
     )
     body: Mapped[str] = mapped_column(Text, nullable=False)
-    status: Mapped[OutreachStatus] = mapped_column(
-        Enum(OutreachStatus, name="outreach_status", create_type=False),
+    tone_used: Mapped[Optional[str]] = mapped_column(String(100))
+    hook_used: Mapped[Optional[str]] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(
+        String(20),
         server_default="DRAFT",
         nullable=False,
     )
@@ -292,10 +315,13 @@ class OutreachEmail(Base):
     )
 
     # Relationships
-    pipeline: Mapped["ApplicationPipeline"] = relationship(back_populates="outreach_email")
+    pipeline: Mapped[Optional["ApplicationPipeline"]] = relationship(
+        back_populates="outreach_email"
+    )
 
 
 # ─── CRM Event ───────────────────────────────────────────────────────────────
+
 
 class CRMEvent(Base):
     """Immutable timeline event for a job application."""
@@ -308,7 +334,10 @@ class CRMEvent(Base):
     pipeline_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("application_pipelines.id", ondelete="CASCADE"), nullable=False
     )
+    candidate_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    job_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
     event_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    details: Mapped[Optional[dict]] = mapped_column(JSONB, server_default="{}")
     payload: Mapped[dict] = mapped_column(JSONB, server_default="{}", nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

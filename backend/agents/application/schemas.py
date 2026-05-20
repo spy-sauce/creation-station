@@ -10,7 +10,7 @@ These are the data contracts between application agents — separate from ORM mo
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 from uuid import UUID
 
 from pydantic import BaseModel, Field, ConfigDict
@@ -33,11 +33,13 @@ class ParsedJDSchema(BaseModel):
     required_skills: list[str] = Field(default_factory=list)
     preferred_skills: list[str] = Field(default_factory=list)
     seniority_level: str = "senior"
+    team_context: Optional[str] = None
+    key_responsibilities: list[str] = Field(default_factory=list)
+    culture_signals: dict[str, str] = Field(default_factory=dict)
     tech_stack: list[str] = Field(default_factory=list)
-    culture_signals: list[str] = Field(default_factory=list)
+    pain_points: Optional[str] = None
     tone: str = "professional"
-    pain_points: list[str] = Field(default_factory=list)
-    compensation_range: Optional[str] = None
+    comp_mentioned: Optional[str] = None
     red_flags: list[str] = Field(default_factory=list)
     application_instructions: Optional[str] = None
     parsed_at: Optional[datetime] = None
@@ -56,11 +58,17 @@ class TailoredResumeSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: Optional[UUID] = None
-    pipeline_id: UUID
-    original_text: str
-    tailored_text: str
-    change_log: list[str] = Field(default_factory=list)
+    pipeline_id: Optional[UUID] = None
+    job_id: Optional[UUID] = None
+    candidate_id: Optional[UUID] = None
+    original_text: str = ""
+    tailored_text: str = ""
+    summary: str = ""
+    full_text: str = ""
+    change_log: Union[str, list[str]] = ""
     gap_analysis: Optional[str] = None
+    version: int = 1
+    pdf_path: Optional[str] = None
     created_at: Optional[datetime] = None
 
 
@@ -77,15 +85,18 @@ class CompanyIntelSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: Optional[UUID] = None
-    pipeline_id: UUID
+    pipeline_id: Optional[UUID] = None
     company_name: str
+    domain: Optional[str] = None
     about: Optional[str] = None
-    recent_news: list[str] = Field(default_factory=list)
+    recent_news: Optional[str] = None
     tech_stack: list[str] = Field(default_factory=list)
     engineering_culture: Optional[str] = None
+    glassdoor_signals: Optional[str] = None
     growth_stage: Optional[str] = None
     team_size: Optional[str] = None
-    notable_facts: list[str] = Field(default_factory=list)
+    notable_facts: Optional[str] = None
+    cache_age: Optional[datetime] = None
     researched_at: Optional[datetime] = None
 
 
@@ -102,10 +113,11 @@ class ContactSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: Optional[UUID] = None
-    pipeline_id: UUID
-    name: str
-    title: str
-    email: str
+    pipeline_id: Optional[UUID] = None
+    company_intel_id: Optional[UUID] = None
+    name: Optional[str] = None
+    title: Optional[str] = None
+    email: Optional[str] = None
     linkedin_url: Optional[str] = None
     confidence: str = "LOW"  # HIGH | MEDIUM | LOW
     fallback_email: Optional[str] = None
@@ -127,14 +139,43 @@ class OutreachEmailSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: Optional[UUID] = None
-    pipeline_id: UUID
+    pipeline_id: Optional[UUID] = None
+    job_id: Optional[UUID] = None
+    candidate_id: Optional[UUID] = None
+    to: Optional[str] = None
+    subject: str = ""
     subject_lines: list[str] = Field(
         default_factory=list,
         description="3 subject line variants shown in Review Dashboard",
     )
-    body: str = Field(description="Email body — 150–200 words max")
+    subject_variants: list[str] = Field(default_factory=list)
+    body: str = Field(default="", description="Email body — 150–200 words max")
+    tone_used: Optional[str] = None
+    hook_used: Optional[str] = None
     status: str = "DRAFT"  # DRAFT | SENT | BOUNCED | REPLIED
     created_at: Optional[datetime] = None
+
+
+# ─── Application Result ───────────────────────────────────────────────────────
+
+
+class ApplicationResultSchema(BaseModel):
+    """
+    Result of an auto-apply submission attempt.
+
+    Status can be: SUBMITTED, FAILED, REQUIRES_MANUAL
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    pipeline_id: UUID
+    job_id: UUID
+    status: str  # SUBMITTED | FAILED | REQUIRES_MANUAL
+    confirmation_number: Optional[str] = None
+    screenshot_path: Optional[str] = None
+    fields_completed: list[str] = Field(default_factory=list)
+    error: Optional[str] = None
+    fallback_url: Optional[str] = None
 
 
 # ─── Application Pipeline ─────────────────────────────────────────────────────
@@ -178,7 +219,9 @@ class CRMEventSchema(BaseModel):
     id: Optional[UUID] = None
     pipeline_id: UUID
     event_type: str = Field(
-        description="APPLIED | EMAIL_SENT | EMAIL_OPENED | RESPONDED | INTERVIEW_SCHEDULED | OFFER_RECEIVED | REJECTED | PLACED"
+        default="",
+        description="JD_PARSED | RESUME_TAILORED | COMPANY_RESEARCHED | CONTACT_FOUND | "
+        "EMAIL_DRAFTED | SUBMITTED | PIPELINE_FAILED | APPROVED | REJECTED",
     )
     payload: Optional[dict] = Field(default_factory=dict)
     created_at: Optional[datetime] = None

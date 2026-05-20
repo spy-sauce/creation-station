@@ -27,6 +27,7 @@ from backend.agents.discovery.digest_builder import DigestBuilder
 from backend.agents.discovery.schemas import (
     CandidateSchema,
     IdentityProfileSchema,
+    IdentityProfile,
     SearchManifestSchema,
     DiscoveredJobSchema,
     ScoreBreakdown,
@@ -45,6 +46,7 @@ __all__ = [
     # Schemas
     "CandidateSchema",
     "IdentityProfileSchema",
+    "IdentityProfile",
     "SearchManifestSchema",
     "DiscoveredJobSchema",
     "ScoreBreakdown",
