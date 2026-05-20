@@ -11,7 +11,7 @@ import pytest
 from uuid import uuid4
 
 from backend.agents.discovery.schemas import (
-    IdentityProfile,
+    IdentityProfileSchema,
     DiscoveredJobSchema,
     ScoreBreakdown,
 )
@@ -20,40 +20,44 @@ from backend.agents.discovery.relevance_scorer import RelevanceScorer
 
 # ─── Fixtures ─────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
-def profile() -> IdentityProfile:
+def profile() -> IdentityProfileSchema:
     """A realistic identity profile for Sean Young."""
-    return IdentityProfile(
-        candidate_id=uuid4(),
-        technical_skills={
-            "Python": 95,
-            "FastAPI": 90,
-            "Java": 85,
-            "Spring Boot": 80,
-            "PostgreSQL": 80,
-            "Redis": 75,
-            "Docker": 75,
-            "Kubernetes": 70,
-            "Claude API": 85,
-            "Solana": 65,
-        },
-        domain_expertise=["fintech", "ai", "web3", "music", "creator-economy"],
-        leadership_level="founder",
-        archetype_tags=["technical-founder", "ai-builder", "creative-technologist"],
-        role_expansion=[
+    return IdentityProfileSchema(
+        archetypes=[
             "Head of AI",
             "VP Engineering at music-tech startup",
             "Technical Co-Founder Series A",
             "AI Creative Director",
             "CTO fractional",
         ],
-        culture_signals={
+        leadership_level="C-Level",
+        technical_skills=[
+            "Python",
+            "FastAPI",
+            "Java",
+            "Spring Boot",
+            "PostgreSQL",
+            "Redis",
+            "Docker",
+            "Kubernetes",
+            "Claude API",
+            "Solana",
+        ],
+        soft_skills=["technical-leadership", "team-building", "product-vision"],
+        industry_experience=["fintech", "ai", "web3", "music", "creator-economy"],
+        notable_achievements=[
+            "Founded VibeSpace",
+            "Built AI-powered talent agent system",
+        ],
+        career_trajectory="From software engineer to founder",
+        ideal_role_description="Lead AI engineering at a mission-driven music-tech startup",
+        signals={
             "startup_vs_enterprise": "startup",
             "remote_preference": "remote",
             "mission_vs_comp": "mission",
         },
-        compensation_band={"min": 200_000, "max": 350_000},
-        creative_layer=["DJ", "music producer", "Solana developer"],
     )
 
 
@@ -62,12 +66,12 @@ def strong_match_job() -> DiscoveredJobSchema:
     """A job that should score high for this profile."""
     return DiscoveredJobSchema(
         id=uuid4(),
-        candidate_id=uuid4(),
+        source="greenhouse",
+        source_id="gh-12345",
         title="Head of AI Engineering",
         company="MusicTech Startup",
         location="Remote",
         url="https://example.com/jobs/head-of-ai",
-        url_hash="abc123",
         description="""
         We're a Series B music-tech startup building AI tools for creators.
         Looking for a Head of AI Engineering to define our AI strategy from scratch.
@@ -83,7 +87,6 @@ def strong_match_job() -> DiscoveredJobSchema:
         Remote-first. Mission-driven team.
         Industry: Music, AI, Creator Economy
         """,
-        source="greenhouse",
     )
 
 
@@ -92,12 +95,12 @@ def weak_match_job() -> DiscoveredJobSchema:
     """A job that should score low for this profile."""
     return DiscoveredJobSchema(
         id=uuid4(),
-        candidate_id=uuid4(),
+        source="indeed",
+        source_id="indeed-67890",
         title="Junior Java Developer",
         company="Big Bank Corp",
         location="New York, NY (On-site required)",
         url="https://bigbank.com/jobs/junior-java",
-        url_hash="def456",
         description="""
         Entry-level Java developer position. 0-2 years experience preferred.
         Required: Java basics, SQL
@@ -105,11 +108,11 @@ def weak_match_job() -> DiscoveredJobSchema:
         Salary: $65,000 - $80,000
         Industry: Traditional Banking
         """,
-        source="indeed",
     )
 
 
 # ─── ScoreBreakdown unit tests ────────────────────────────────────────────────
+
 
 class TestScoreBreakdown:
     def test_composite_weights_sum_to_full_score(self):
@@ -153,6 +156,7 @@ class TestScoreBreakdown:
         """Scores outside 0-100 should be rejected by pydantic."""
         import pytest as pt
         from pydantic import ValidationError
+
         with pt.raises(ValidationError):
             ScoreBreakdown(
                 technical_match=101,
@@ -165,6 +169,7 @@ class TestScoreBreakdown:
 
 
 # ─── RelevanceScorer local scoring tests (no Claude) ─────────────────────────
+
 
 class TestRelevanceScorerLocal:
     """
@@ -200,32 +205,31 @@ class TestRelevanceScorerLocal:
         assert score == 60
 
     def test_level_match_exact(self, scorer, profile):
-        """founder → founder should be 100."""
-        parsed_jd = {"seniority_level": "founder"}
+        """C-Level → cto should be 100."""
+        parsed_jd = {"seniority_level": "cto"}
         score = scorer._score_level(parsed_jd, profile)
         assert score == 100
 
     def test_level_match_one_step_off(self, scorer, profile):
-        """founder → exec (1 step) should be 80."""
-        parsed_jd = {"seniority_level": "exec"}
+        """C-Level → vp (1 step) should be 80."""
+        parsed_jd = {"seniority_level": "vp"}
         score = scorer._score_level(parsed_jd, profile)
         assert score == 80
 
-    def test_level_match_junior_job_for_founder(self, scorer, profile):
-        """founder vs junior (many steps) should be low."""
+    def test_level_match_junior_job_for_clevel(self, scorer, profile):
+        """C-Level vs junior (many steps) should be low."""
         parsed_jd = {"seniority_level": "junior"}
         score = scorer._score_level(parsed_jd, profile)
         assert score <= 30
 
     def test_culture_match_remote_alignment(self, scorer, profile):
         """Remote candidate + remote job should score well."""
-        from backend.agents.discovery.schemas import DiscoveredJobSchema
         job = DiscoveredJobSchema(
-            candidate_id=uuid4(),
+            source="greenhouse",
+            source_id="test-1",
             title="Test",
             company="Test Co",
             url="https://x.com",
-            url_hash="xyz",
         )
         parsed_jd = {
             "remote_type": "remote",
@@ -236,13 +240,12 @@ class TestRelevanceScorerLocal:
 
     def test_culture_match_onsite_penalty(self, scorer, profile):
         """Remote candidate + onsite job should score low."""
-        from backend.agents.discovery.schemas import DiscoveredJobSchema
         job = DiscoveredJobSchema(
-            candidate_id=uuid4(),
+            source="greenhouse",
+            source_id="test-2",
             title="Test",
             company="Test Co",
             url="https://x.com",
-            url_hash="xyz",
         )
         parsed_jd = {
             "remote_type": "onsite",
@@ -250,16 +253,6 @@ class TestRelevanceScorerLocal:
         }
         score = scorer._score_culture(parsed_jd, profile, job)
         assert score < 40
-
-    def test_compensation_above_minimum(self, scorer, profile):
-        parsed_jd = {"comp_mentioned": "$250,000 - $300,000"}
-        score = scorer._score_compensation(parsed_jd, profile)
-        assert score == 100
-
-    def test_compensation_below_minimum(self, scorer, profile):
-        parsed_jd = {"comp_mentioned": "$65,000 - $80,000"}
-        score = scorer._score_compensation(parsed_jd, profile)
-        assert score <= 15
 
     def test_compensation_not_listed(self, scorer, profile):
         """Senior roles often don't list comp — should be generous neutral."""
@@ -269,9 +262,11 @@ class TestRelevanceScorerLocal:
 
 # ─── Archetype generator tests ────────────────────────────────────────────────
 
+
 class TestArchetypeGenerator:
     def test_title_expansion_known_archetype(self, profile):
         from backend.agents.discovery.archetype_generator import ArchetypeGenerator
+
         gen = ArchetypeGenerator()
         manifest = gen.expand(
             profile,
@@ -279,16 +274,3 @@ class TestArchetypeGenerator:
         )
         assert len(manifest.target_titles) > 0
         assert len(manifest.keywords) > 0
-
-    def test_company_profile_uses_culture_signals(self, profile):
-        from backend.agents.discovery.archetype_generator import ArchetypeGenerator
-        gen = ArchetypeGenerator()
-        manifest = gen.expand(
-            profile,
-            {"titles": [], "companies": [], "industries": []},
-        )
-        # Startup profile should target early stages
-        assert any(
-            s in manifest.target_company_profile.stages
-            for s in ["seed", "series-a", "series-b"]
-        )

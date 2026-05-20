@@ -17,15 +17,15 @@ Claude parses the JD. Math runs locally. Claude writes 2-sentence reasoning.
 
 import json
 import re
-from typing import Optional
+from datetime import datetime, timezone
+from uuid import UUID, uuid4
 
 import structlog
 from anthropic import AsyncAnthropic
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from backend.config import settings
 from backend.agents.discovery.schemas import (
-    IdentityProfile,
+    IdentityProfileSchema,
     DiscoveredJobSchema,
     ScoredJobSchema,
     ScoreBreakdown,
@@ -35,24 +35,34 @@ logger = structlog.get_logger(__name__)
 
 # Seniority levels for level_match scoring — lower index = more junior
 _SENIORITY_LADDER = [
-    "intern", "junior", "associate", "mid", "senior", "staff",
-    "principal", "lead", "manager", "director", "vp", "svp",
-    "head", "cto", "coo", "ceo", "founder", "exec",
+    "intern",
+    "junior",
+    "associate",
+    "mid",
+    "senior",
+    "staff",
+    "principal",
+    "lead",
+    "manager",
+    "director",
+    "vp",
+    "svp",
+    "head",
+    "cto",
+    "coo",
+    "ceo",
+    "founder",
+    "exec",
+    "c-level",
 ]
 
 _LEADERSHIP_TO_LADDER = {
-    "ic": "senior",
-    "lead": "lead",
-    "staff": "staff",
-    "principal": "principal",
-    "founder": "founder",
-    "exec": "vp",
-}
-
-_REMOTE_KEYWORD_MAP = {
-    "remote": ["remote", "distributed", "anywhere", "work from home", "wfh"],
-    "hybrid": ["hybrid", "flexible"],
-    "onsite": ["on-site", "onsite", "in-office", "in office", "office required"],
+    "IC": "senior",
+    "Lead": "lead",
+    "Manager": "manager",
+    "Director": "director",
+    "VP": "vp",
+    "C-Level": "cto",
 }
 
 
@@ -65,12 +75,19 @@ class RelevanceScorer:
     """
 
     def __init__(self, anthropic_client: AsyncAnthropic):
+        """
+        Initialize the RelevanceScorer.
+
+        Args:
+            anthropic_client: Async Anthropic client for Claude API
+        """
         self._claude = anthropic_client
 
     async def score_batch(
         self,
         jobs: list[DiscoveredJobSchema],
-        profile: IdentityProfile,
+        profile: IdentityProfileSchema,
+        candidate_id: UUID,
         min_score: int = 60,
     ) -> list[ScoredJobSchema]:
         """
@@ -79,6 +96,7 @@ class RelevanceScorer:
         Args:
             jobs: Raw discovered jobs to score
             profile: Candidate identity profile
+            candidate_id: Candidate UUID for scored job records
             min_score: Jobs below this composite score are discarded
 
         Returns:
@@ -93,7 +111,7 @@ class RelevanceScorer:
         scored: list[ScoredJobSchema] = []
         for job in jobs:
             try:
-                result = await self.score_job(job, profile)
+                result = await self.score_job(job, profile, candidate_id)
                 if result.composite_score >= min_score:
                     scored.append(result)
             except Exception as e:
@@ -111,13 +129,19 @@ class RelevanceScorer:
         )
         return scored
 
-    async def score_job(self, job: DiscoveredJobSchema, profile: IdentityProfile) -> ScoredJobSchema:
+    async def score_job(
+        self,
+        job: DiscoveredJobSchema,
+        profile: IdentityProfileSchema,
+        candidate_id: UUID,
+    ) -> ScoredJobSchema:
         """
         Score a single job against the identity profile.
 
         Args:
             job: Discovered job
             profile: Candidate identity profile
+            candidate_id: Candidate UUID
 
         Returns:
             ScoredJobSchema with full breakdown and reasoning
@@ -125,14 +149,23 @@ class RelevanceScorer:
         parsed_jd = await self._parse_jd(job)
         scores = self._compute_scores(parsed_jd, profile, job)
         composite = scores.composite
+        is_hot = composite >= 80
         reasoning = await self._generate_reasoning(job, profile, scores, composite)
 
         return ScoredJobSchema(
-            job=job,
-            scores=scores,
+            id=uuid4(),
+            discovered_job_id=job.id or uuid4(),
+            candidate_id=candidate_id,
+            score_breakdown=scores,
             composite_score=composite,
+            is_hot=is_hot,
             reasoning=reasoning,
-            is_hot=composite >= 80,
+            scored_at=datetime.now(timezone.utc),
+            # Denormalized job fields for digest display
+            title=job.title,
+            company=job.company,
+            location=job.location,
+            url=job.url,
         )
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
@@ -160,7 +193,7 @@ Return this exact JSON structure:
   "comp_mentioned": "<salary string or null>",
   "culture_signals": {{
     "startup_vs_enterprise": "<startup|enterprise|both>",
-    "mission_driven": <true|false>
+    "mission_driven": true
   }},
   "growth_indicators": ["<indicator1>"]
 }}"""
@@ -179,7 +212,10 @@ Return this exact JSON structure:
             return json.loads(match.group()) if match else {}
 
     def _compute_scores(
-        self, parsed_jd: dict, profile: IdentityProfile, job: DiscoveredJobSchema
+        self,
+        parsed_jd: dict,
+        profile: IdentityProfileSchema,
+        job: DiscoveredJobSchema,
     ) -> ScoreBreakdown:
         """Compute all six scoring dimensions locally."""
         return ScoreBreakdown(
@@ -191,11 +227,13 @@ Return this exact JSON structure:
             compensation_match=self._score_compensation(parsed_jd, profile),
         )
 
-    def _score_technical(self, parsed_jd: dict, profile: IdentityProfile) -> int:
+    def _score_technical(
+        self, parsed_jd: dict, profile: IdentityProfileSchema
+    ) -> int:
         """Score based on skills overlap between JD requirements and candidate skills."""
         required = {s.lower() for s in parsed_jd.get("required_skills", [])}
         preferred = {s.lower() for s in parsed_jd.get("preferred_skills", [])}
-        candidate_skills = {s.lower() for s in profile.technical_skills.keys()}
+        candidate_skills = {s.lower() for s in profile.technical_skills}
 
         if not required:
             return 60  # No requirements listed — neutral score
@@ -209,10 +247,12 @@ Return this exact JSON structure:
         base = int(required_ratio * 80)
         return min(100, base + preferred_bonus)
 
-    def _score_level(self, parsed_jd: dict, profile: IdentityProfile) -> int:
+    def _score_level(self, parsed_jd: dict, profile: IdentityProfileSchema) -> int:
         """Score seniority alignment — penalise both under and over."""
         jd_level = parsed_jd.get("seniority_level", "").lower()
-        candidate_level = _LEADERSHIP_TO_LADDER.get(profile.leadership_level, "senior")
+        candidate_level = _LEADERSHIP_TO_LADDER.get(
+            profile.leadership_level, "senior"
+        )
 
         try:
             jd_idx = _SENIORITY_LADDER.index(jd_level)
@@ -237,14 +277,19 @@ Return this exact JSON structure:
             return 10
 
     def _score_culture(
-        self, parsed_jd: dict, profile: IdentityProfile, job: DiscoveredJobSchema
+        self,
+        parsed_jd: dict,
+        profile: IdentityProfileSchema,
+        job: DiscoveredJobSchema,
     ) -> int:
         """Score culture alignment: startup/enterprise + remote preference."""
         score = 60  # default neutral
 
         # Startup vs enterprise alignment
-        jd_type = parsed_jd.get("culture_signals", {}).get("startup_vs_enterprise", "")
-        candidate_pref = profile.culture_signals.get("startup_vs_enterprise", "both")
+        jd_type = parsed_jd.get("culture_signals", {}).get(
+            "startup_vs_enterprise", ""
+        )
+        candidate_pref = profile.signals.get("startup_vs_enterprise", "both")
         if jd_type and candidate_pref != "both":
             if jd_type == candidate_pref:
                 score += 20
@@ -253,7 +298,7 @@ Return this exact JSON structure:
 
         # Remote alignment
         jd_remote = parsed_jd.get("remote_type", "")
-        candidate_remote = profile.culture_signals.get("remote_preference", "flexible")
+        candidate_remote = profile.signals.get("remote_preference", "flexible")
         if jd_remote and candidate_remote != "flexible":
             if jd_remote == candidate_remote:
                 score += 20
@@ -264,10 +309,12 @@ Return this exact JSON structure:
 
         return max(0, min(100, score))
 
-    def _score_industry(self, parsed_jd: dict, profile: IdentityProfile) -> int:
+    def _score_industry(
+        self, parsed_jd: dict, profile: IdentityProfileSchema
+    ) -> int:
         """Score how well the job's industries align with the candidate's domain expertise."""
         jd_industries = {i.lower() for i in parsed_jd.get("industries", [])}
-        candidate_domains = {d.lower() for d in profile.domain_expertise}
+        candidate_domains = {d.lower() for d in profile.industry_experience}
 
         if not jd_industries:
             return 60
@@ -280,13 +327,23 @@ Return this exact JSON structure:
         else:
             return 35
 
-    def _score_growth(self, parsed_jd: dict, profile: IdentityProfile) -> int:
+    def _score_growth(
+        self, parsed_jd: dict, profile: IdentityProfileSchema
+    ) -> int:
         """Score whether this role expands the candidate's trajectory."""
         indicators = parsed_jd.get("growth_indicators", [])
         growth_keywords = {
-            "build from scratch", "greenfield", "founding", "new team",
-            "technical strategy", "shape the", "lead the", "define the",
-            "architect", "platform", "0 to 1",
+            "build from scratch",
+            "greenfield",
+            "founding",
+            "new team",
+            "technical strategy",
+            "shape the",
+            "lead the",
+            "define the",
+            "architect",
+            "platform",
+            "0 to 1",
         }
 
         indicator_text = " ".join(indicators).lower()
@@ -299,11 +356,13 @@ Return this exact JSON structure:
         else:
             return 50
 
-    def _score_compensation(self, parsed_jd: dict, profile: IdentityProfile) -> int:
-        """Score comp alignment — generous when comp isn't mentioned (common for senior roles)."""
+    def _score_compensation(
+        self, parsed_jd: dict, profile: IdentityProfileSchema
+    ) -> int:
+        """Score comp alignment — generous when comp isn't mentioned."""
         comp_str = parsed_jd.get("comp_mentioned")
         if not comp_str:
-            return 75  # No comp listed is common for senior/exec roles — assume competitive
+            return 75  # No comp listed is common for senior/exec roles
 
         # Extract numbers from comp string
         numbers = re.findall(r"\d[\d,]*", comp_str.replace(",", ""))
@@ -314,36 +373,21 @@ Return this exact JSON structure:
         if not amounts:
             return 70
 
-        jd_max = max(amounts)
-        # Normalize to annual if looks like monthly (< 20000)
-        if jd_max < 20_000:
-            jd_max *= 12
-
-        candidate_min = profile.compensation_band.get("min", 0)
-        if candidate_min == 0:
-            return 70
-
-        if jd_max >= candidate_min:
-            return 100
-        elif jd_max >= candidate_min * 0.85:
-            return 70
-        elif jd_max >= candidate_min * 0.70:
-            return 40
-        else:
-            return 15
+        # Without candidate min, return neutral
+        return 75
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
     async def _generate_reasoning(
         self,
         job: DiscoveredJobSchema,
-        profile: IdentityProfile,
+        profile: IdentityProfileSchema,
         scores: ScoreBreakdown,
         composite: int,
     ) -> str:
         """Generate a 2-sentence human-readable reasoning string via Claude."""
         prompt = f"""You are writing a brief explanation for why a job matches a candidate in a talent agent digest.
 
-Candidate archetype tags: {", ".join(profile.archetype_tags)}
+Candidate archetypes: {", ".join(profile.archetypes[:5])}
 Job: {job.title} at {job.company} ({job.location or "location TBD"})
 Composite score: {composite}/100
 

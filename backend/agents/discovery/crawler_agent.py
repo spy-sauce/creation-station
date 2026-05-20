@@ -30,30 +30,41 @@ import hashlib
 import structlog
 from uuid import UUID
 
-from backend.agents.discovery.schemas import ArchetypeManifest, DiscoveredJobSchema
+from backend.agents.discovery.schemas import SearchManifestSchema, DiscoveredJobSchema
 
 logger = structlog.get_logger(__name__)
 
+
 # ─── Source adapter stubs (Phase 1B) ──────────────────────────────────────────
+
 
 class GreenhouseAdapter:
     """Greenhouse API adapter — Phase 1B."""
-    async def fetch(self, titles: list[str]) -> list[dict]: ...
+
+    async def fetch(self, titles: list[str]) -> list[dict]:
+        ...
+
 
 class LeverAdapter:
     """Lever API adapter — Phase 1B."""
-    async def fetch(self, titles: list[str]) -> list[dict]: ...
+
+    async def fetch(self, titles: list[str]) -> list[dict]:
+        ...
+
 
 class PlaywrightAdapter:
     """Playwright adapter for JS-heavy career pages — Phase 1B."""
-    async def fetch(self, url: str) -> str: ...
+
+    async def fetch(self, url: str) -> str:
+        ...
 
 
 # ─── CrawlerAgent ─────────────────────────────────────────────────────────────
 
+
 class CrawlerAgent:
     """
-    Crawls job boards and company career pages against an ArchetypeManifest.
+    Crawls job boards and company career pages against a SearchManifestSchema.
 
     STUB: Returns empty results. Real implementation is Phase 1B.
     Interface is stable — orchestrator uses this exactly as-is.
@@ -70,9 +81,15 @@ class CrawlerAgent:
     ]
 
     def __init__(self, candidate_id: UUID):
+        """
+        Initialize the CrawlerAgent.
+
+        Args:
+            candidate_id: UUID of the candidate this crawl is for
+        """
         self._candidate_id = candidate_id
 
-    async def run(self, manifest: ArchetypeManifest) -> list[DiscoveredJobSchema]:
+    async def run(self, manifest: SearchManifestSchema) -> list[DiscoveredJobSchema]:
         """
         Execute a full crawl run against the manifest.
 
@@ -95,8 +112,7 @@ class CrawlerAgent:
             logger.info(
                 "crawler_agent.would_search",
                 title=title,
-                variants=manifest.title_variants.get(title, [title]),
-                industries=manifest.target_industries[:3],
+                keywords=manifest.keywords[:5],
             )
 
         logger.info(

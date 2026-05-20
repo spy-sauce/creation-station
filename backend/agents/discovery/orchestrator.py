@@ -25,7 +25,8 @@ Status machine:
 """
 
 import asyncio
-from datetime import datetime, timezone
+import json
+from datetime import date, datetime, timezone
 from uuid import UUID
 
 import redis.asyncio as aioredis
@@ -35,7 +36,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config import settings
-from backend.agents.discovery.schemas import CandidateSchema, DailyDigestSchema
+from backend.agents.discovery.schemas import (
+    CandidateSchema,
+    DailyDigestSchema,
+    ScoredJobSchema,
+)
 from backend.agents.discovery.identity_profiler import IdentityProfiler
 from backend.agents.discovery.archetype_generator import ArchetypeGenerator
 from backend.agents.discovery.crawler_agent import CrawlerAgent
@@ -44,6 +49,8 @@ from backend.agents.discovery.digest_builder import DigestBuilder
 from backend.models.discovery import Candidate as CandidateORM, CrawlRun
 
 logger = structlog.get_logger(__name__)
+
+_STATUS_CHANNEL = "agent.status.discovery"
 
 
 class DiscoveryOrchestrator:
@@ -55,6 +62,13 @@ class DiscoveryOrchestrator:
     """
 
     def __init__(self, db: AsyncSession, redis_client: aioredis.Redis):
+        """
+        Initialize the DiscoveryOrchestrator.
+
+        Args:
+            db: Async SQLAlchemy session
+            redis_client: Async Redis client for caching and pub/sub
+        """
         self._db = db
         self._redis = redis_client
         self._claude = AsyncAnthropic(api_key=settings.anthropic_api_key)
@@ -62,7 +76,7 @@ class DiscoveryOrchestrator:
         self._profiler = IdentityProfiler(redis_client, self._claude)
         self._archetype_gen = ArchetypeGenerator()
         self._scorer = RelevanceScorer(self._claude)
-        self._digest_builder = DigestBuilder(redis_client, self._claude, db)
+        self._digest_builder = DigestBuilder(redis_client, db)
 
     async def run(
         self,
@@ -86,14 +100,16 @@ class DiscoveryOrchestrator:
             # 1. Load candidate
             candidate = await self._load_candidate(candidate_id)
             log.info("orchestrator.candidate_loaded", name=candidate.name)
+            await self._publish_status(candidate_id, "CANDIDATE_LOADED")
 
             # 2. Build identity profile (cached 24h)
             profile = await self._profiler.build_profile(candidate)
             log.info(
                 "orchestrator.profile_built",
-                archetypes=len(profile.role_expansion),
+                archetypes=len(profile.archetypes),
                 level=profile.leadership_level,
             )
+            await self._publish_status(candidate_id, "PROFILE_BUILT")
 
             # 3. Expand archetypes into search manifest
             excluded = {
@@ -107,11 +123,13 @@ class DiscoveryOrchestrator:
                 target_titles=len(manifest.target_titles),
                 keywords=len(manifest.keywords),
             )
+            await self._publish_status(candidate_id, "MANIFEST_BUILT")
 
             # 4. Crawl (currently stubbed — Phase 1B)
             crawler = CrawlerAgent(candidate_id)
             raw_jobs = await crawler.run(manifest)
             log.info("orchestrator.crawl_complete", jobs_found=len(raw_jobs))
+            await self._publish_status(candidate_id, "CRAWL_COMPLETE")
 
             # 5. Score with bounded concurrency
             semaphore = asyncio.Semaphore(settings.crawl_concurrency)
@@ -122,31 +140,44 @@ class DiscoveryOrchestrator:
 
             # Fan out scoring — respect the semaphore so we don't hammer Claude
             scored_jobs = await self._scorer.score_batch(
-                raw_jobs, profile, min_score=settings.min_score
+                raw_jobs,
+                profile,
+                candidate_id,
+                min_score=settings.min_score,
             )
             log.info(
                 "orchestrator.scoring_complete",
                 passed=len(scored_jobs),
                 filtered=len(raw_jobs) - len(scored_jobs),
             )
+            await self._publish_status(candidate_id, "SCORING_COMPLETE")
 
             # 6. Build and publish digest
-            digest = await self._digest_builder.compile(
-                candidate_id=candidate_id,
-                scored_jobs=scored_jobs,
-                total_discovered=len(raw_jobs),
-            ) if not dry_run else self._build_dry_run_digest(candidate_id, scored_jobs, len(raw_jobs))
+            if not dry_run:
+                digest = await self._digest_builder.compile(
+                    candidate_id=candidate_id,
+                    scored_jobs=scored_jobs,
+                    total_discovered=len(raw_jobs),
+                )
+            else:
+                digest = self._build_dry_run_digest(
+                    candidate_id, scored_jobs, len(raw_jobs)
+                )
 
-            await self._complete_run(crawl_run, len(raw_jobs), len(scored_jobs), dry_run)
+            await self._complete_run(
+                crawl_run, len(raw_jobs), len(scored_jobs), dry_run
+            )
             log.info(
                 "orchestrator.run_complete",
                 top_picks=len(digest.top_picks),
                 hot_picks=len(digest.hot_picks),
             )
+            await self._publish_status(candidate_id, "RUN_COMPLETE")
             return digest
 
         except Exception as e:
             log.error("orchestrator.run_failed", error=str(e))
+            await self._publish_status(candidate_id, "RUN_FAILED")
             await self._fail_run(crawl_run, str(e), dry_run)
             raise
 
@@ -182,7 +213,9 @@ class DiscoveryOrchestrator:
         run.jobs_scored = scored
         await self._db.commit()
 
-    async def _fail_run(self, run: CrawlRun | None, error: str, dry_run: bool) -> None:
+    async def _fail_run(
+        self, run: CrawlRun | None, error: str, dry_run: bool
+    ) -> None:
         """Mark the CrawlRun as FAILED with error log."""
         if dry_run or run is None:
             return
@@ -191,18 +224,35 @@ class DiscoveryOrchestrator:
         run.error_log = error
         await self._db.commit()
 
-    def _build_dry_run_digest(self, candidate_id: UUID, scored_jobs, total_discovered: int):
+    def _build_dry_run_digest(
+        self,
+        candidate_id: UUID,
+        scored_jobs: list[ScoredJobSchema],
+        total_discovered: int,
+    ) -> DailyDigestSchema:
         """Build an in-memory digest without DB writes — for dry_run mode."""
-        from backend.agents.discovery.schemas import DailyDigestSchema
-        from datetime import date
-
         return DailyDigestSchema(
             candidate_id=candidate_id,
             run_date=date.today().isoformat(),
-            total_discovered=total_discovered,
-            total_scored=len(scored_jobs),
+            total_jobs_discovered=total_discovered,
+            total_jobs_scored=len(scored_jobs),
             top_picks=[],
             hot_picks=[],
             new_companies=[],
-            digest_summary="[dry_run] No data written to DB.",
+        )
+
+    async def _publish_status(self, candidate_id: UUID, status: str) -> None:
+        """Publish discovery pipeline status event to Redis pub/sub."""
+        payload = json.dumps(
+            {
+                "event": "DISCOVERY_STATUS",
+                "candidate_id": str(candidate_id),
+                "status": status,
+            }
+        )
+        await self._redis.publish(_STATUS_CHANNEL, payload)
+        logger.info(
+            "orchestrator.status_published",
+            channel=_STATUS_CHANNEL,
+            status=status,
         )
