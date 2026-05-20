@@ -1,160 +1,190 @@
-# Talent Agent — Cultivation Brief (Iteration 2)
+# Talent Agent — Cultivation Brief (Iteration 3)
 
-> Input to `mycelium plant`. Canonical spec the cultivation seeds from. This brief **locks the current state of the project at HEAD `a898d3a`** for HYPHA contract-freeze and adds the iter-2 deltas that close the Phase 1 end-to-end loop.
+> Input to `mycelium plant`. Canonical spec the cultivation seeds from. This brief **locks the current state of the project at HEAD `328420c`** (iter-3 freeze tree) and absorbs the new mycelium framework surface shipped in `legendary-funicular` PR #3 (dashboard + cache-network + theme.yaml + concurrency lessons).
 >
-> Read `CLAUDE.md` (project), `/Users/spy/.claude/CLAUDE.md` (global VibeSpace context), and the existing `hyphae/HYPHA-*.md` contracts (10 files, frozen in commit `9e9aea0`) before acting on anything below.
+> Read `CLAUDE.md` (project), `/Users/spy/.claude/CLAUDE.md` (global VibeSpace context), the existing `hyphae/HYPHA-*.md` contracts (11 files — 10 from iter-1, plus `HYPHA-DESIGN-CORE` frozen at `cccbef2`), and `legendary-funicular/HANDOFF.md` (the 2026-05-16 dashboard+cache entry) before acting on anything below.
 >
-> **Supersedes iter-1 brief at `9e9aea0`.** No architectural redesign — iter-2 activates what iter-1 scaffolded.
+> **Supersedes iter-2 brief at `a804ec1`.** iter-2's product scope did not ship — iter-3 carries it forward, folds in the new framework surface, and adds the DESIGN-CORE leaf.
 
 ---
 
-## What changed since iter-1
+## What changed since iter-2
 
-Iter-1 (commits up to `9e9aea0`) froze the brief and 10 HYPHA contracts against repo state. The hand-built code at `a898d3a` (current HEAD) brings reality in line with the iter-1 brief:
+Two streams of change since the iter-2 brief was written:
 
-- **AUTH** built: passwordless magic link + JWT (`HS256`, 7d), `/auth/request-link`, `/auth/verify`, `/auth/me`, `get_current_user` dependency.
-- **ONBOARD** built: PyMuPDF resume extract + `/onboarding/resume`, `/onboarding/profile`, `/onboarding/status`.
-- **DASH** scaffolded: React 19 + Vite 8 + Tailwind 4 Review Dashboard (10 pages, 4 components, `AuthContext`, `DashboardLayout`, `lib/api.js`).
-- **INFRA** built: backend `Dockerfile`, frontend `Dockerfile` + `nginx.conf`, `docker-compose.yml`, `Makefile`, `start.sh`/`stop.sh`, `deploy/setup-aws.sh`, `deploy/deploy.sh`, ECS task definitions, `digital-dash-pipeline.yml`.
-- **CI**: Digital Dash pipeline spec live; `auto-commit.sh` Digital Dash-aware.
+**Repo-side (Talent Agent):**
+- `HYPHA-DESIGN-CORE` drafted and frozen (commit `cccbef2`). Top Shelf editorial variant locked. The design-language is now an upstream NUTRIENT alongside `HYPHA-SCHEMA-CORE`; every frontend HYPHA reads tokens from it.
+- `vibespace-framework/brief.md` committed (`328420c`) on the `[VSF]` stream — sister cultivation that crystallizes reusable DNA from this repo. Sits alongside `[TA]`, does not block it.
+- No iter-2 product code shipped yet. Crawler still stub, AutoApply still scaffolded, AUTH still dev-mode, OBS still partial, INFRA still un-deployed.
 
-**Iter-1 ⇒ Iter-2 framing.** Iter-1 was "scaffold the org." Iter-2 is **focused activation**: take the iter-1 acceptance criteria 1–8 and make them actually pass end-to-end on a real candidate (Sean Young) targeting real job postings on real ATS hosts.
+**Framework-side (legendary-funicular PR #3, 40 commits, +11,304 / -930):**
+- **`mycelium dashboard {init,serve,render}`** — new operator surface. Three.js Bloch-sphere agents on a fibonacci globe, cache-relay inner shell, Star Wars HUD, ≥1.5s pulse discipline. Per-cultivation `theme.yaml` molds palette + brand + biome→identity-color map. `serve` re-reads `state.json` + `theme.yaml` every request; SSE event stream at `/events/stream`.
+- **`cli/src/lib/cache-network/`** — LRU `CacheStore` wraps SDK calls at `cultivate.ts:480`. Default ON. `--no-cache` for bypass. Emits `cache.hit` / `cache.miss` / `cache.evict` / `cache.pulse` (1.4s aggregation). `state.cache` additive block on `sporenet/state.json`.
+- **Micro-agent fan-out** — deterministic 2-4 micros per leaf via xorshift seeded from sha256(leafId). 70/30 cheap/full split (50/50 if critical severity).
+- **Concurrency lesson learned the hard way.** First framework-internal cultivation at `-c 30`: 0/43 leaves, all rate-limited, $17 burned, zero output. Second at `-c 4`: 43/43 FRUIT_READY in 17.6 min. **iter-3 prescribes `-c 4` as the default.** Reserved for the framework's own token-bucket warmup pattern; can scale back up when the upstream cache hit-rate is high.
+
+iter-3 framing: **iter-2 product scope + DESIGN-CORE freeze + per-cultivation theme.yaml + observe via `mycelium dashboard serve`.** No architectural redesign.
 
 ---
 
-## What we're building (iter-2 scope)
+## What we're building (iter-3 scope)
 
-**Talent Agent**, end-to-end loop activated for one candidate. The loop:
+**Talent Agent**, end-to-end loop activated for one candidate, with the new operator surface live. The loop (unchanged from iter-2):
 
-1. Discovery finds **real jobs** crawled from **all public ATS sources** the system supports — Greenhouse public boards, Lever public boards, Workday tenant boards, Ashby boards — for SPY's seeded identity profile.
+1. Discovery finds **real jobs** from Greenhouse / Lever / Ashby / Workday public boards for SPY's seeded identity.
 2. Application engine, on approval, tailors a real resume, researches the real company, finds a real contact, composes a real outreach email, and **submits a real form** to the live ATS.
 3. Magic-link auth sends real emails via **Resend**.
 4. Digital Dash deploys backend + frontend to **AWS ECS Fargate staging** and reaches `/health` green.
 5. Every agent transition is visible on the dashboard via Redis pub/sub.
+6. **NEW iter-3:** SPY can run `mycelium dashboard serve` against this repo's `sporenet/state.json` and watch the Three.js console live while cultivation runs.
 
-"Done" for iter-2 = a real job, a real submission, a real `SENT` row, all reviewed by SPY — and a staging deployment reachable on the web.
+"Done" for iter-3 = the iter-2 acceptance criteria 1–8 PLUS a `theme.yaml` that paints the dashboard in Top Shelf editorial (gold-on-black), PLUS a green Digital Dash pipeline to staging.
 
 ---
 
 ## Why
 
-Phase 1 closes when the loop runs unattended on real targets. Iter-1 made the wiring. Iter-2 lights it up. This is also a continued **dogfood pass for the mycelium framework on a Python/FastAPI/Postgres workload** — prior `ddp` runs targeted Expo/Supabase, so the framework surfaces gaps on this stack.
+iter-2's acceptance criteria didn't ship because the cultivation pre-conditions weren't right (untracked design contract, no theme.yaml, no operator visibility into a long-running cultivation). iter-3 fixes the pre-conditions and re-runs the loop. This is also the first **non-framework-internal cultivation** that exercises the new dashboard + cache-network surface against a real Python/FastAPI/Postgres workload.
 
 ---
 
 ## Team + governance
 
-Unchanged from iter-1.
+Unchanged from iter-2.
 
 - **Operator:** SPY (Sean Young, Space Cowboy #9) — Founder & CEO, VibeSpace LLC. Build authority.
 - **Stream tag:** `TA/` · **Branch:** `TA/<kebab-desc>` · **Commit subject:** `[TA] <imperative>` · **PR title:** `[TA] <what shipped>`
-- **HYPHA gate:** non-negotiable per global guardrails. No code written against an unfrozen spec. This brief + the existing `hyphae/HYPHA-*.md` files (10 of them) freeze together. **Iter-2 does not rewrite HYPHA contracts — it amends them with delivery deltas where iter-1 marked items as "stubbed" or "deferred."**
+- **Sister stream:** `[VSF]` (VibeSpace Framework) — runs independently in `vibespace-framework/`, does not block `[TA]`.
+- **HYPHA gate:** non-negotiable. iter-3 does not rewrite the 10 iter-1 HYPHA contracts — it amends them with delivery deltas and adds `HYPHA-DESIGN-CORE` (frozen `cccbef2`) as the 11th. A new `theme.yaml` companion ships at repo root.
 
 ---
 
 ## Stack (locked — unchanged)
 
-Inherits iter-1 §Stack verbatim. Python 3.12 · FastAPI · Pydantic v2 · SQLAlchemy 2.0 async · PostgreSQL 15 · Redis 7 · Anthropic SDK (`claude-sonnet-4-20250514`, `max_tokens=4096`) · Playwright async · httpx · BeautifulSoup · PyMuPDF · JWT `HS256` · React 19 · Vite 8 · Tailwind 4 · lucide-react · react-router-dom 7 · Docker · AWS ECS Fargate (us-east-1) · ECR · AWS Secrets Manager · Digital Dash pipeline · structlog · pytest + pytest-asyncio · Apache 2.0.
+Inherits iter-2 §Stack verbatim. Python 3.12 · FastAPI · Pydantic v2 · SQLAlchemy 2.0 async · PostgreSQL 15 · Redis 7 · Anthropic SDK (`claude-sonnet-4-20250514`, `max_tokens=4096`) · Playwright async · httpx · BeautifulSoup · PyMuPDF · `resend` Python SDK · JWT `HS256` · React 19 · Vite 8 · Tailwind 4 · lucide-react · react-router-dom 7 · Docker · AWS ECS Fargate (us-east-1) · ECR · AWS Secrets Manager · Digital Dash pipeline · structlog · pytest + pytest-asyncio · Apache 2.0.
 
-**New dependency (justified):** `resend` Python SDK for magic-link email delivery. Documented in the AUTH biome's `FRUIT_READY` line.
+**Type stack (locked by HYPHA-DESIGN-CORE):** Playfair Display (serif) · DM Sans (sans) · DM Mono (mono). Icon system: lucide-react only.
 
 ---
 
 ## Architecture
 
-Unchanged from iter-1. See iter-1 brief §Architecture and the 10 HYPHA contracts. Iter-2 adds **no new components** — it activates existing ones.
+Unchanged from iter-2. iter-3 adds **no new product components** — it activates iter-2's pending deltas and adds the dashboard observation surface (which is external to the app, runs via `mycelium dashboard serve` against `sporenet/state.json`).
 
 ---
 
-## Iter-2 deltas (per HYPHA)
+## iter-3 deltas (per HYPHA)
 
-This section is the iter-2 work plan. Each delta is amended into the named HYPHA contract during freeze. No HYPHA is rewritten end-to-end.
+Each delta is amended into the named HYPHA contract during freeze. No HYPHA is rewritten end-to-end.
 
-### TA/AUTH — magic-link email send
-- Replace the dev-mode `magic_link` return-in-body with a **Resend** API send when `DEBUG=false`.
-- New env var: `RESEND_API_KEY` (from AWS Secrets Manager in prod).
-- New env var: `MAGIC_LINK_FROM_EMAIL` (default `auth@vibespace.io`).
-- Magic-link email template lives in `backend/api/auth_emails.py` (single file, no jinja yet).
-- When `DEBUG=true`, both: log the link AND attempt to send (so dev still has a fast path).
-- On Resend API failure: log error, fall back to dev-mode return (don't 500 the request).
+### TA/AUTH — magic-link email send via Resend
+*(unchanged from iter-2 — carry forward verbatim)*
+- Replace dev-mode `magic_link` return-in-body with **Resend** API send when `DEBUG=false`.
+- New env vars: `RESEND_API_KEY` (AWS Secrets Manager in prod), `MAGIC_LINK_FROM_EMAIL` (default `auth@vibespace.io`).
+- Template lives in `backend/api/auth_emails.py` (single file, no jinja yet).
+- When `DEBUG=true`, log AND attempt send (dev still has a fast path).
+- On Resend API failure: log error, fall back to dev-mode return (don't 500).
 
 ### TA/DISCOVER — real crawler sources
-- Replace `crawler_agent` stub with a **multi-source real crawler** covering:
-  - **Greenhouse public boards** — `https://boards.greenhouse.io/{slug}.json` (JSON API, no auth)
-  - **Lever public boards** — `https://api.lever.co/v0/postings/{slug}?mode=json`
-  - **Ashby public boards** — `https://api.ashbyhq.com/posting-api/job-board/{slug}?includeCompensation=true`
-  - **Workday tenant boards** — Playwright crawl of `https://{tenant}.wd*.myworkdayjobs.com/{board}` (rate-limited, since these don't expose a clean JSON API)
-- Slug discovery: maintain a curated list in `backend/agents/discovery/sources.yaml` — seed with ~50 company slugs across the four sources. (Future iteration: auto-discovery from a roles signal.)
-- Per-source `httpx` rate limit: 2 req/sec, 0.5–2.0s jitter, User-Agent `VibeSpaceTalentAgent/1.0`, respect `robots.txt`.
-- Crawler emits `DiscoveredJob` rows with `source` ∈ {`greenhouse`, `lever`, `ashby`, `workday`}.
-- `RelevanceScorer` consumes real rows unchanged.
+*(unchanged from iter-2 — carry forward verbatim)*
+- Replace `crawler_agent` stub with multi-source real crawler:
+  - **Greenhouse**: `https://boards.greenhouse.io/{slug}.json`
+  - **Lever**: `https://api.lever.co/v0/postings/{slug}?mode=json`
+  - **Ashby**: `https://api.ashbyhq.com/posting-api/job-board/{slug}?includeCompensation=true`
+  - **Workday**: Playwright crawl of `https://{tenant}.wd*.myworkdayjobs.com/{board}`
+- Slug discovery: `backend/agents/discovery/sources.yaml`, seed ~50 slugs across four sources.
+- Per-source `httpx` rate limit: 2 req/sec, 0.5–2.0s jitter, UA `VibeSpaceTalentAgent/1.0`, respect `robots.txt`.
+- `DiscoveredJob.source` ∈ {`greenhouse`, `lever`, `ashby`, `workday`}.
 
 ### TA/APPLY — real auto_apply across four ATS hosts
-- `AutoApplyAgent` already supports Greenhouse/Lever/Workday/Ashby per HYPHA-APPLICATION-ENGINE. Iter-2 makes the Playwright selectors **production-quality** for each:
-  - Greenhouse: standard form fields + file upload for resume
-  - Lever: similar, plus single-page application handling
-  - Workday: multi-step wizard navigation, save-and-continue handling
-  - Ashby: SPA with React-Hook-Form selectors
-- **Submission is real.** No `--dry-run` flag in normal mode. Submission requires `application_pipeline.status = APPROVED` AND human approval timestamp present.
-- CAPTCHA detection: if Playwright sees a `recaptcha` iframe or Cloudflare challenge, transition to `REQUIRES_MANUAL`, screenshot, notify dashboard. No CAPTCHA solving.
+*(unchanged from iter-2 — carry forward verbatim)*
+- Production Playwright selectors for Greenhouse / Lever / Workday / Ashby.
+- Real submission. No `--dry-run` in normal mode. Requires `application_pipeline.status = APPROVED` + human approval timestamp.
+- CAPTCHA detection → `REQUIRES_MANUAL` + screenshot + dashboard notify. No solving.
 - Screenshots at every major step (`backend/agents/application/auto_apply_screens/<pipeline_id>/step-NN.png`).
-- Per-host fixture YAML (`backend/agents/application/ats_selectors.yaml`) keyed by source + form variant; falls back to generic selectors.
+- Per-host fixture YAML (`backend/agents/application/ats_selectors.yaml`) keyed by source + form variant.
 
 ### TA/DASH — wire frontend ↔ backend end-to-end
-- `AuthContext`: actually call `POST /auth/request-link`, handle the `/auth/verify?token=…` redirect, store JWT in **localStorage** (per Open Question default), set Bearer header in `lib/api.js`.
-- Onboarding wizard: actually POST to `/onboarding/resume` (multipart) and `/onboarding/profile`.
-- Overview, Pipeline, ReviewQueue: actually consume `/api/v1/discovery/digest/{candidate_id}`, `/api/v1/application/pipelines`, `/api/v1/review/queue`.
-- ReviewQueue detail panel: render the four artifact panes (parsed JD, tailored resume diff, company intel, outreach draft) + contact card. Approve/Reject buttons call `/review/{id}/approve` and `/review/{id}/reject`.
-- Polling cadence: 5s on ReviewQueue and Pipeline pages; manual refresh elsewhere. (SSE/WebSocket upgrade stays a follow-up.)
+*(unchanged from iter-2 — carry forward verbatim)*
+- `AuthContext`: call `POST /auth/request-link`, handle `/auth/verify?token=…`, store JWT in **localStorage**, set Bearer in `lib/api.js`.
+- Onboarding wizard: POST to `/onboarding/resume` (multipart) and `/onboarding/profile`.
+- Overview / Pipeline / ReviewQueue: consume real `/api/v1/...` endpoints.
+- ReviewQueue detail panel: four artifact panes (parsed JD, tailored resume diff, company intel, outreach draft) + contact card.
+- Polling: 5s on ReviewQueue and Pipeline; manual elsewhere.
 
 ### TA/OBS — observability activation
-- Land the `structlog` config module: `backend/logging_config.py`. JSON output in prod (when `DEBUG=false`), pretty-printer in dev.
-- PII redaction filter: redact `email`, `phone`, `legal_name` in any logged Claude prompt/response payload before emission.
-- Redis pub/sub publisher singleton: `backend/events/publisher.py` with `publish(channel, payload)`. Used by Discovery, Application, AgentManager.
-- Subscriber (server-side) for the future SSE bridge: skeleton only, not consumed by frontend yet.
-- `/health` endpoint returns `{status, version, git_sha, redis: ok|down, db: ok|down}`.
+*(unchanged from iter-2 — carry forward verbatim)*
+- `backend/logging_config.py`: JSON in prod, pretty-printer in dev.
+- PII redaction filter: redact `email`, `phone`, `legal_name` in Claude prompt/response logs before emission.
+- Redis pub/sub publisher singleton: `backend/events/publisher.py`. Used by Discovery, Application, AgentManager.
+- Subscriber skeleton for future SSE bridge; not consumed by frontend yet.
+- `/health` returns `{status, version, git_sha, redis: ok|down, db: ok|down}`.
 
 ### TA/INFRA — deploy to AWS staging
-- Run `deploy/setup-aws.sh` once against the target AWS account (Open Question — see below). Idempotent.
-- `deploy/deploy.sh staging backend a898d3a` succeeds end-to-end; same for `frontend`.
-- ECS service health checks pass; ALB `/health` returns 200.
+*(unchanged from iter-2 — carry forward verbatim)*
+- `deploy/setup-aws.sh` once against target account. Idempotent.
+- `deploy/deploy.sh staging backend <sha>` succeeds; same for `frontend`.
+- ECS health checks pass; ALB `/health` returns 200.
 - Secrets in AWS Secrets Manager: `ANTHROPIC_API_KEY`, `JWT_SECRET`, `DATABASE_URL`, `REDIS_URL`, `RESEND_API_KEY`.
-- Digital Dash pipeline runs lint → test → build → deploy-staging → health-check. Deploy-prod stays gated on manual approval — out of iter-2 scope.
+- Digital Dash pipeline green through lint → test → build → deploy-staging → health-check. Prod gate stays manual.
 
-### TA/SCHEMA — no migration changes
-Schema is locked. If a delta accidentally requires a column add, that's a brief amendment, not a leaf-level change.
+### TA/DESIGN — design-language token rollout (NEW, iter-3 only)
+- `HYPHA-DESIGN-CORE` is frozen at `cccbef2`. iter-3 cultivation verifies conformance:
+  - `frontend/src/index.css` declares all tokens (palette, type, status colors, transitions, scrollbar, selection).
+  - Typography utility classes (`.t-serif`, `.t-serif-bold`, `.t-label`, `.t-label-gold`, `.t-body`) present.
+  - `StatusBadge.jsx` is the canonical status→color map.
+  - `StatCard.jsx` is the primitive card treatment.
+  - No hex literals in JSX. No icon-library mixing (lucide-react only).
+- `frontend/src/design/CHEATSHEET.md` exists with: variant intent, signature flourishes, forbidden patterns, motion language, icon system. Surface HYPHAs reading from it.
+- **Companion `theme.yaml` ships at repo root** (see TA/CULTIVATION below).
 
-### TA/AGENTS, TA/API, TA/ONBOARD — no scope change
-Already complete from iter-1's manual build. Cultivation verifies conformance to HYPHA contracts and patches any drift.
+### TA/CULTIVATION — per-cultivation theme.yaml (NEW, iter-3 only)
+- New file at repo root: `./theme.yaml`. Schema per `legendary-funicular/NUTRIENTS.md#1-theme-schema-per-cultivation-themeyaml`.
+- Encodes the same design tokens as `HYPHA-DESIGN-CORE` so `mycelium dashboard serve` paints the operator console in Top Shelf editorial.
+- Required keys:
+  - `brand`: `{ name: "Talent Agent", seal: "TA", tagline: "The Dot Connects." }`
+  - `palette`: gold-on-black (mirrors `frontend/src/index.css` custom properties — single source of truth, design-core wins on conflict)
+  - `pulse_rate_ms`: 1800 (≥1.5s discipline)
+  - `biome_identity_color`: maps each of the 11 HYPHA biome IDs to the design-core status palette
+- DESIGN-CORE owns the canonical token values. `theme.yaml` references them. If a value drifts, design-core is canon and theme.yaml is patched, never the reverse.
+
+### TA/SCHEMA, TA/AGENTS, TA/API, TA/ONBOARD — no scope change
+Schema locked. Agent code from iter-1 unchanged in shape. API surface unchanged in shape. Onboarding complete.
 
 ---
 
 ## Domain entities
 
-Unchanged. Source of truth: `backend/migrations/000–003_*.sql` and `backend/models/`. Locked at HEAD `a898d3a`.
+Unchanged. Source of truth: `backend/migrations/000–003_*.sql` and `backend/models/`. Locked at HEAD `328420c`.
 
 ---
 
 ## Biome split
 
-Unchanged from iter-1. Same 10 biomes, same `blocked_by` graph. See iter-1 brief §Biome split or `hyphae/HYPHA-*.md`. Iter-2's work is amended into existing biomes; no new biome added.
+Inherits iter-2's 10 biomes plus **`TA/DESIGN`** as the 11th. New `blocked_by` edges:
+
+- `TA/DASH` now depends on `TA/DESIGN` (frontend can't ship without design tokens).
+- `TA/DESIGN` has no upstream — it's a NUTRIENT producer like `TA/SCHEMA`.
+
+`TA/CULTIVATION` is **not a biome** — it's a leaf-level artifact (single file `theme.yaml`) owned jointly by `TA/DESIGN` (token source) and the cultivation runner.
 
 ---
 
 ## Frozen contract surfaces
 
-Per iter-1 brief §0–§12. Locked verbatim. Iter-2-specific amendments:
+Per iter-2 brief §0–§12. Locked verbatim. iter-3-specific amendments:
 
-- **§7 (Auth + JWT)** — adds Resend integration. Magic-link email body: short template, plain text + minimal HTML, contains the click URL + 15-min expiry note.
-- **§9 (Claude API)** — adds: every Claude call wrapped in `structlog.contextvars.bind_contextvars(agent=..., pipeline_id=...)` so logs carry agent context.
-- **§10 (External scraping)** — extended to the four crawler sources with per-source rate limits as listed in TA/DISCOVER delta.
-- **§12 (Pipeline result codes)** — staging deploy is now in scope; prod deploy gate stays manual.
+- **§NEW (DESIGN-CORE)** — added. Token vocabulary, primitive components, icon and font system. See `hyphae/HYPHA-DESIGN-CORE.md`.
+- **§7 (Auth + JWT)** — unchanged from iter-2 (Resend integration).
+- **§9 (Claude API)** — unchanged from iter-2 (structlog contextvars binding).
+- **§10 (External scraping)** — unchanged from iter-2 (four crawler sources, per-source rate limits).
+- **§12 (Pipeline result codes)** — staging deploy in scope; prod gate manual.
 
 ---
 
 ## API surface
 
-Unchanged. All under `/api/v1`. Iter-2 adds no new endpoints — it implements consumers of the ones iter-1 declared.
+Unchanged. All under `/api/v1`. iter-3 adds no new endpoints.
 
 ---
 
@@ -162,87 +192,129 @@ Unchanged. All under `/api/v1`. Iter-2 adds no new endpoints — it implements c
 
 The cultivation is "ready to harvest" when, on a clean checkout of HEAD post-cultivation, SPY can:
 
-1. `make up` → backend healthy at `/health` (now returns `{status, version, git_sha, redis, db}`), Postgres + Redis containers up.
-2. Open the dashboard, request a magic link → **a real email arrives in SPY's inbox via Resend**, click → land on Onboarding.
+1. `make up` → backend healthy at `/health` (returns `{status, version, git_sha, redis, db}`), Postgres + Redis containers up.
+2. Open the dashboard, request a magic link → **real email arrives via Resend**, click → land on Onboarding.
 3. Upload SPY's resume PDF → see extracted text preview → fill profile → land on Overview.
 4. Trigger Discovery for SPY's candidate → **real jobs from Greenhouse + Lever + Ashby + Workday** populate the digest, scored 6-dim.
-5. Open ReviewQueue → see a pipeline at `AWAITING_REVIEW` with all four artifact panels populated and a contact card.
+5. Open ReviewQueue → pipeline at `AWAITING_REVIEW` with all four artifact panels populated and contact card present.
 6. Approve → pipeline → `SUBMITTED` → **AutoApply submits the real form against a real public ATS posting** → status `SENT`. Screenshots saved.
-7. `./deploy/deploy.sh staging backend a898d3a` succeeds; ALB `/health` returns 200; Digital Dash pipeline green through deploy-staging.
+7. `./deploy/deploy.sh staging backend <sha>` succeeds; ALB `/health` returns 200; Digital Dash pipeline green through deploy-staging.
 8. Every agent transition visible on the dashboard via Redis pub/sub (polled at 5s).
+9. **NEW iter-3:** `mycelium dashboard serve --dir .` opens the Three.js operator console painted in Top Shelf editorial (gold-on-black, Playfair brand seal, ≥1.5s pulse). Cache relay shell visible. Cultivation state ticks live.
+10. **NEW iter-3:** `frontend/src/index.css` declares all DESIGN-CORE tokens; `grep -r '#[0-9a-fA-F]\{3,8\}' frontend/src --include='*.jsx'` returns zero hex-literal hits in JSX (tokens-only).
 
-Code quality bar: `ruff check backend/` clean, `pytest tests/ -v` green (now including application-engine smoke tests), `npm run build` clean.
+Code quality bar: `ruff check backend/` clean · `pytest tests/ -v` green (including application-engine smoke tests) · `npm run build` clean · `npm run lint` clean.
 
 ---
 
-## Out of scope (iter-2)
+## Out of scope (iter-3)
 
-Updated from iter-1. Removed: production magic-link email (now in scope), real ATS auto_apply (now in scope), real crawler sources (now in scope). Remaining non-goals:
+Inherits iter-2's non-goals. Unchanged:
 
-- Multi-candidate concurrent processing (still single-candidate MVP)
-- Agency dashboard / white-label / multi-tenant (still design-only via `candidate_id` FK)
+- Multi-candidate concurrent processing (single-candidate MVP)
+- Agency dashboard / white-label / multi-tenant (design-only via `candidate_id` FK)
 - CAPTCHA solving (Playwright detects → `REQUIRES_MANUAL`)
 - Stripe / PESO billing
-- Mycelium `BaseAgent` NODE wrappers (still aspirational)
-- Bloom identity-card integration (still reserved)
-- Background `framework_watcher` / `pattern_extractor` agents (still empty scaffold)
-- Push notifications (still in-app banners only)
-- Mobile app (still web dashboard only)
-- Production ECS deploy with manual approval (staging is in scope; prod gate stays manual)
-- SSE/WebSocket realtime dashboard streaming (polling stays)
+- Mycelium `BaseAgent` NODE wrappers
+- Bloom identity-card integration
+- `framework_watcher` / `pattern_extractor` agents (still empty scaffold)
+- Push notifications (in-app banners only)
+- Mobile app (web dashboard only)
+- Production ECS deploy (staging in scope; prod manual)
+- SSE/WebSocket realtime app dashboard streaming (polling stays — separate from `mycelium dashboard`'s SSE which is operator-facing only)
 - A11y / i18n / mobile responsive beyond table breakpoints
-- Automated crawler-source slug discovery (curated YAML in iter-2)
-- ATS auth/login automation (still public-form-only; pre-authenticated session not yet supported)
+- Automated crawler-source slug discovery (curated YAML)
+- ATS auth/login automation (public-form-only)
+- Cellar / back-of-house design variants (DESIGN-CORE locks Top Shelf only)
 
 ---
 
 ## Constraints + guardrails
 
-Inherited from iter-1 verbatim. No agent architecture changes. Apache 2.0 header on every new file. No `print()`, no `requests`, no bare `except:`. No hardcoded secrets. No `git` from leaves — `./auto-commit.sh` only. `git push --force` / `rm -rf` outside `/tmp` require explicit confirmation. Mycelium vocabulary precise. Multi-tenancy design-only.
+Inherited from iter-2 verbatim. Apache 2.0 header on every new file. No `print()`, no `requests`, no bare `except:`. No hardcoded secrets. No `git` from leaves — `./auto-commit.sh` only. `git push --force` / `rm -rf` outside `/tmp` require explicit confirmation. Mycelium vocabulary precise. Multi-tenancy design-only.
 
-**Iter-2-specific:**
-- Real ATS submissions are real money to the candidate (real applications appear in real recruiters' inboxes). AutoApply blocks until human approval. No automated approval bypass exists, ever.
-- Resend API key is a secret. AWS Secrets Manager only; never in `.env` committed; dev uses `.env.local` outside git.
+**iter-3-specific:**
+- Real ATS submissions are real money. AutoApply blocks until human approval. No automated-approval bypass exists.
+- Resend API key is a secret. AWS Secrets Manager only; never in committed `.env`; dev uses `.env.local` outside git.
+- **No hex literals in JSX.** Tokens via CSS custom properties only. Enforced as acceptance criterion #10.
+- **Icon system is lucide-react only.** Mixing icon libraries fails design-core conformance.
 
 ---
 
-## Open questions (iter-2 — resolved + remaining)
+## Open questions (iter-3 — resolved + remaining)
 
-| Question | Iter-1 default | Iter-2 resolution |
+| Question | iter-2 resolution | iter-3 status |
 |---|---|---|
-| Production magic-link email provider | Leave TODO | **Resend** |
-| Real ATS target for `auto_apply` | Dry-run | **All four public sources: Greenhouse, Lever, Ashby, Workday** |
-| Crawler sources | Stub | **Greenhouse / Lever / Ashby JSON APIs + Workday Playwright crawl; slugs curated in `sources.yaml`** |
-| Frontend JWT storage | localStorage | **localStorage (confirmed)** |
-| AWS account ID + ECR push permissions | Block on first deploy | **Still open — bootstrap when SPY provides account; deploy step is leaf-level work and may sit in `PENDING_AWS` until then** |
+| Production magic-link email provider | Resend | unchanged |
+| Real ATS targets for auto_apply | Greenhouse / Lever / Ashby / Workday | unchanged |
+| Crawler sources | Same four | unchanged |
+| Frontend JWT storage | localStorage | unchanged |
+| AWS account ID + ECR push permissions | Open | **Still open** — bootstrap when SPY provides account; INFRA deploy may sit in `PENDING_AWS`. |
+| `theme.yaml` schema for dashboard | (not in iter-2) | **Resolved** — per `legendary-funicular/NUTRIENTS.md#1`. DESIGN-CORE is canon; theme.yaml mirrors. |
+| Cultivation concurrency | `-c 30` | **Resolved** — `-c 4` per framework-internal cultivation evidence (`-c 30` rate-limited 0/43; `-c 4` shipped 43/43). |
 
-The AWS account question is the only remaining unresolved input. Cultivation proceeds; the INFRA biome's `deploy-staging` deliverable can run `setup-aws.sh` in dry-run mode and emit a `HANDOFF.md` line documenting the gating credential.
+The AWS account question remains the only unresolved input. Cultivation proceeds; INFRA biome's `deploy-staging` deliverable runs `setup-aws.sh` in dry-run mode and emits a `HANDOFF.md` line documenting the gating credential.
+
+---
+
+## Known framework gotchas (don't waste leaf cycles on these)
+
+Inherited from `legendary-funicular/HANDOFF.md` (2026-05-16). iter-3 cultivation leaves should NOT debug these — they're framework bugs being tracked separately:
+
+1. **`mycelium harvest` threshold mis-reports 0%.** Looks for `feat/<biome-id>` branches per `mycelium.yaml agents[].branch`, but cultivate emits `feat/<leaf-id>` branches. Threshold check reports 0% even when work is fully landed via CommitQueue. Workaround: trust `state.json` leaf statuses, not the harvest percentage.
+2. **`mycelium contracts freeze` requires `--stack` flag.** Talent Agent has a stack (`nextjs-fastapi-supabase` fallback — see "How to run"), so this is fine. Just don't omit the flag.
+3. **Artifact-path mismatches.** Some leaves emit files but declare different artifact paths; framework's `git add --all -- <declared-paths>` may not match. Files land; commit attribution may split. Worth a HANDOFF line if observed, not a blocker.
+4. **Some leaves report "0 files committed" despite files on disk.** Possible sibling-overlap auto-commit. Verify by `git log -- <path>` rather than trusting the leaf status banner.
 
 ---
 
 ## How to run
 
-Single-call pipeline (this run):
+**Pre-flight (always):**
 
 ```bash
 cd /Users/spy/mfautomation/repos/creation-station/reverse-search
+git status                                            # MUST be clean — iter-3 freeze captures the tree
+mycelium plant ./brief.md \
+  --stack nextjs-fastapi-supabase \
+  --security startup \
+  --dry-run
+```
+
+This prints the planner prompt without invoking the SDK — verifies the brief decomposes cleanly against the 11 existing HYPHAE.
+
+**Stack preset note (unchanged from iter-2).** `mycelium` ships presets `nextjs-fastapi-supabase` and `expo-supabase`. There's no `fastapi-postgres` preset — falling back to `nextjs-fastapi-supabase` as closest match (FastAPI half lines up; Supabase ≠ Postgres but the brief locks Postgres explicitly in §Stack, so leaves must read §Stack as canon, not the preset).
+
+**Single-call pipeline (this run):**
+
+```bash
 mycelium ddp \
   --brief ./brief.md \
   --stack nextjs-fastapi-supabase \
   --security startup \
-  --concurrency 30 \
+  --concurrency 4 \
   --threshold 0.8
 ```
 
-**Stack preset note.** `mycelium` v0.1.0 ships presets `nextjs-fastapi-supabase` and `expo-supabase`. There's no `fastapi-postgres` preset — falling back to `nextjs-fastapi-supabase` as the closest match (FastAPI half lines up; Supabase ≠ Postgres but the brief locks Postgres explicitly in §Stack, so leaves must read §Stack as canon, not the preset). To be documented in `HANDOFF.md` once cultivation writes one.
+**Concurrency = 4, NOT 30.** Per `legendary-funicular/HANDOFF.md` 2026-05-16: `-c 30` hit Anthropic rate-limits on every leaf, $17 burned, zero output. `-c 4` shipped 43/43 in 17.6 min by letting the token bucket recover between batches and warming the prompt cache. Cache-network (default ON) further reduces token spend on retries.
 
-Pre-flight (run before the real `ddp`):
+**Operator visibility (NEW, iter-3):**
+
+In a second terminal, while `ddp` runs:
 
 ```bash
-mycelium plant ./brief.md --stack nextjs-fastapi-supabase --security startup --dry-run
+mycelium dashboard serve --dir . --port 3334
 ```
 
-This prints the planner prompt without invoking the SDK — lets SPY (and me) verify the brief decomposes cleanly against the 10 existing HYPHAE before burning agent budget.
+Opens the Three.js operator console painted from `./theme.yaml`. Watch leaves germinate → grow → flow → fruit live. Cache hits show as cyan-teal pulses on the inner relay shell. SSE event stream at `/events/stream` if you want to tail events from CLI.
+
+**Emergency cache bypass** (use only if you suspect a stale cache contaminating output):
+
+```bash
+mycelium cultivate --no-cache ...
+```
+
+Default OFF (i.e. cache ON) is correct for nearly all runs.
 
 ---
 
@@ -250,15 +322,18 @@ This prints the planner prompt without invoking the SDK — lets SPY (and me) ve
 
 - **Repo CLAUDE.md:** `/Users/spy/mfautomation/repos/creation-station/reverse-search/CLAUDE.md`
 - **Global CLAUDE.md:** `/Users/spy/.claude/CLAUDE.md`
-- **Iter-1 brief (superseded, kept in git):** commit `9e9aea0` — file `brief.md` at that commit
-- **HYPHA contracts (10, frozen iter-1):** `./hyphae/HYPHA-*.md`
+- **iter-2 brief (superseded, kept in git):** commit `a804ec1` — file `brief.md` at that commit
+- **HYPHA contracts (11 frozen):** `./hyphae/HYPHA-*.md` — 10 from iter-1 + `HYPHA-DESIGN-CORE` (`cccbef2`)
 - **Mycelium framework:** `/Users/spy/mfautomation/repos/legendary-funicular/`
-- **Mycelium orchestrator + 30/60/90:** `/Users/spy/mfautomation/mycelium-orchestrator/`
+- **Framework PR #3 (dashboard + cache-net):** https://github.com/spy-sauce/legendary-funicular/pull/3
+- **Framework HANDOFF:** `/Users/spy/mfautomation/repos/legendary-funicular/HANDOFF.md` — read the 2026-05-16 entry
+- **Framework NUTRIENTS (theme.yaml schema):** `legendary-funicular/NUTRIENTS.md#1-theme-schema-per-cultivation-themeyaml`
+- **VibeSpace Framework sister brief:** `./vibespace-framework/brief.md` — `[VSF]` stream, runs independently
 - **Resend docs:** https://resend.com/docs/api-reference/emails/send-email
 - **Greenhouse public boards JSON:** https://developers.greenhouse.io/job-board.html
 - **Lever public postings JSON:** https://github.com/lever/postings-api
 - **Ashby posting API:** https://developers.ashbyhq.com/reference/posting-api-overview
-- **Workday board structure (no public docs — Playwright-driven):** company-specific
+- **Workday board structure:** company-specific, Playwright-driven, no public docs
 - **Phase-1 build prompts:** `01-discovery-engine.md`, `02-application-engine.md`
 - **Framework spec (deferred):** `03-vibespace-framework.md`
 - **Digital Dash pipeline:** `./digital-dash-pipeline.yml`
