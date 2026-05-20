@@ -3,7 +3,7 @@
 # ║  VibeSpace LLC · Digital Dash integrated                                   ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 
-.PHONY: up down build logs shell test migrate install dev \
+.PHONY: up down build logs shell test migrate seed install dev \
         deploy-local deploy-staging deploy-prod rollback \
         lint pipeline frontend-dev setup-aws
 
@@ -41,6 +41,10 @@ migrate:
 	docker-compose exec db psql -U talent_agent -d talent_agent -f /docker-entrypoint-initdb.d/001_discovery.sql
 	docker-compose exec db psql -U talent_agent -d talent_agent -f /docker-entrypoint-initdb.d/002_application.sql
 	docker-compose exec db psql -U talent_agent -d talent_agent -f /docker-entrypoint-initdb.d/003_auth.sql
+
+seed:
+	@echo "Seeding database with test data..."
+	docker-compose exec app python backend/seed.py
 
 # ─── Testing ─────────────────────────────────────────────────────────────────
 

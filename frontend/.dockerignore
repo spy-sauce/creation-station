@@ -1,0 +1,37 @@
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║  .dockerignore — Talent Agent Frontend                                      ║
+# ║  VibeSpace LLC                                                              ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+
+# Dependencies (will be installed fresh in the container)
+node_modules
+
+# Build output (will be built fresh in the container)
+dist
+
+# Development files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+.DS_Store
+
+# Documentation
+*.md
+!README.md
+
+# Git
+.git
+.gitignore
+
+# Docker files (don't need to copy themselves)
+Dockerfile
+.dockerignore
+
+# Scripts
+*.sh

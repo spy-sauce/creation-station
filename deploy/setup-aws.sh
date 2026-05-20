@@ -112,6 +112,7 @@ SECRETS=(
   "talent-agent/anthropic-api-key:sk-ant-placeholder"
   "talent-agent/jwt-secret:change-me-in-production"
   "talent-agent/hunter-api-key:placeholder"
+  "talent-agent/resend-api-key:re_placeholder"
 )
 
 for entry in "${SECRETS[@]}"; do
@@ -140,10 +141,12 @@ ok "═════════════════════════�
 echo ""
 log "Next steps:"
 echo "  1. Update secrets in AWS Secrets Manager with real values:"
-echo "     - talent-agent/database-url  (your RDS connection string)"
-echo "     - talent-agent/redis-url     (your ElastiCache endpoint)"
+echo "     - talent-agent/database-url    (your RDS connection string)"
+echo "     - talent-agent/redis-url       (your ElastiCache endpoint)"
 echo "     - talent-agent/anthropic-api-key"
-echo "     - talent-agent/jwt-secret    (generate a strong random string)"
+echo "     - talent-agent/jwt-secret      (generate a strong random string)"
+echo "     - talent-agent/hunter-api-key  (Hunter.io for contact lookup)"
+echo "     - talent-agent/resend-api-key  (Resend for magic link emails)"
 echo ""
 echo "  2. Create an RDS PostgreSQL 15 instance + ElastiCache Redis 7 cluster"
 echo "     (if you haven't already)"

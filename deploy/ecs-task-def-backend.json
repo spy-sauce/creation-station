@@ -56,6 +56,10 @@
         {
           "name": "HUNTER_API_KEY",
           "valueFrom": "arn:aws:secretsmanager:us-east-1:${AWS_ACCOUNT_ID}:secret:talent-agent/hunter-api-key"
+        },
+        {
+          "name": "RESEND_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:${AWS_ACCOUNT_ID}:secret:talent-agent/resend-api-key"
         }
       ],
       "logConfiguration": {

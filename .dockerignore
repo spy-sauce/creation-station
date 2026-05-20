@@ -1,0 +1,79 @@
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║  .dockerignore — Talent Agent                                               ║
+# ║  VibeSpace LLC                                                              ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+.Python
+*.so
+.venv
+venv
+.pytest_cache
+.mypy_cache
+.ruff_cache
+*.egg-info
+dist
+build
+
+# Node / Frontend (backend Dockerfile doesn't need these)
+frontend/node_modules
+frontend/dist
+frontend/.cache
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+.DS_Store
+
+# Env files (secrets)
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Documentation (not needed in image)
+*.md
+!README.md
+docs
+
+# Tests
+tests
+*.test.py
+coverage
+htmlcov
+.coverage
+
+# Deploy scripts (not needed in image)
+deploy
+digital-dash-pipeline.yml
+
+# Development files
+Makefile
+docker-compose.yml
+*.sh
+!backend/agents/**/*.sh
+
+# Hyphae specs
+hyphae
+NUTRIENTS.md
+CLAUDE.md
+CELLULAR-MAP.md
+mycelium.yaml
+brief.md
+
+# Logs
+logs
+*.log
+
+# Misc
+.dockerignore
+Dockerfile

@@ -26,9 +26,50 @@ die()  { echo -e "${RED}[auto-commit]${RESET} $*" >&2; exit 1; }
 
 git rev-parse --git-dir > /dev/null 2>&1 || die "Not a git repository."
 
+# ─── secret file detection ────────────────────────────────────────────────────
+# Block commits that include sensitive files
+
+FORBIDDEN_PATTERNS=(
+  '.env'
+  '.env.local'
+  '.env.production'
+  '.env.*.local'
+  'credentials.json'
+  '*.pem'
+  '*.key'
+  'secrets.yaml'
+  'secrets.yml'
+)
+
+check_for_secrets() {
+  local staged_files
+  staged_files=$(git diff --cached --name-only 2>/dev/null || git diff --name-only)
+
+  for pattern in "${FORBIDDEN_PATTERNS[@]}"; do
+    # Use fnmatch-style matching
+    while IFS= read -r file; do
+      case "$file" in
+        $pattern)
+          die "BLOCKED: Refusing to commit secret file: ${file}"
+          ;;
+      esac
+      # Also check basename
+      basename=$(basename "$file")
+      case "$basename" in
+        $pattern)
+          die "BLOCKED: Refusing to commit secret file: ${file}"
+          ;;
+      esac
+    done <<< "$staged_files"
+  done
+}
+
 # ─── stage all changes ────────────────────────────────────────────────────────
 
 git add -A
+
+# Check for secrets AFTER staging but BEFORE committing
+check_for_secrets
 
 # Check if there is anything to commit
 if git diff --cached --quiet; then
