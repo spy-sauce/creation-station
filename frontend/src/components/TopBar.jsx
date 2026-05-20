@@ -2,28 +2,20 @@ import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Bell, Search, LogOut } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-
-const titles = {
-  '/dashboard': 'Overview',
-  '/dashboard/candidates': 'Candidates',
-  '/dashboard/pipeline': 'Pipeline',
-  '/dashboard/review': 'Review Queue',
-  '/dashboard/analytics': 'Analytics',
-  '/dashboard/settings': 'Settings',
-}
+import { routes, pageTitles } from '../lib/routes'
 
 export default function TopBar() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const [showMenu, setShowMenu] = useState(false)
-  const title = titles[pathname] || 'Dashboard'
+  const title = pageTitles[pathname] || 'Dashboard'
 
   const initials = user?.name
     ? user.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
     : user?.email?.slice(0, 2).toUpperCase() || '??'
 
-  const handleLogout = () => { logout(); navigate('/login') }
+  const handleLogout = () => { logout(); navigate(routes.login) }
 
   return (
     <div className="topbar">

@@ -1,7 +1,10 @@
 /**
  * API client for Talent Agent backend.
  * Handles auth headers and base URL configuration.
+ * Per NUTRIENTS.md API_CONTRACTS — this is the ONLY place to construct fetch URLs.
  */
+
+import { routes } from './routes'
 
 // In dev, Vite proxies /api → http://localhost:8000
 // In prod, set VITE_API_URL to the full backend URL
@@ -54,7 +57,7 @@ async function request(path, options = {}) {
 
   if (response.status === 401) {
     clearAuth()
-    window.location.href = '/login'
+    window.location.href = routes.login
     throw new Error('Unauthorized')
   }
 
@@ -67,6 +70,7 @@ async function request(path, options = {}) {
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
+// Per NUTRIENTS.md API_CONTRACTS §Auth Endpoints
 
 export async function requestMagicLink(email) {
   return request('/auth/request-link', {
@@ -87,6 +91,7 @@ export async function getMe() {
 }
 
 // ─── Onboarding ───────────────────────────────────────────────────────────────
+// Per NUTRIENTS.md API_CONTRACTS §Onboarding Endpoints
 
 export async function uploadResume(file) {
   const formData = new FormData()
@@ -109,6 +114,18 @@ export async function getOnboardingStatus() {
 }
 
 // ─── Discovery ────────────────────────────────────────────────────────────────
+// Per NUTRIENTS.md API_CONTRACTS §Discovery Endpoints
+
+export async function triggerDiscovery(candidateId, dryRun = false) {
+  return request('/discovery/trigger', {
+    method: 'POST',
+    body: JSON.stringify({ candidate_id: candidateId, dry_run: dryRun }),
+  })
+}
+
+export async function getDigest(digestId) {
+  return request(`/discovery/digest/${digestId}`)
+}
 
 export async function getLatestDigest(candidateId) {
   return request(`/discovery/digest/${candidateId}`)
@@ -122,4 +139,61 @@ export async function triggerDiscoveryRun(candidateId, dryRun = false) {
   return request(`/discovery/run/${candidateId}?dry_run=${dryRun}`, {
     method: 'POST',
   })
+}
+
+// ─── Application ──────────────────────────────────────────────────────────────
+// Per NUTRIENTS.md API_CONTRACTS §Application Endpoints
+
+export async function startApplication(jobId, candidateId) {
+  return request('/application/start', {
+    method: 'POST',
+    body: JSON.stringify({ job_id: jobId, candidate_id: candidateId }),
+  })
+}
+
+export async function submitApplication(pipelineId) {
+  return request(`/application/submit/${pipelineId}`, {
+    method: 'POST',
+  })
+}
+
+export async function listApplications({ candidateId, status, limit = 50, offset = 0 } = {}) {
+  const params = new URLSearchParams()
+  if (candidateId) params.append('candidate_id', candidateId)
+  if (status) params.append('status', status)
+  params.append('limit', limit.toString())
+  params.append('offset', offset.toString())
+  return request(`/application/list?${params}`)
+}
+
+export async function getPipeline(pipelineId) {
+  return request(`/application/${pipelineId}`)
+}
+
+// ─── Review ───────────────────────────────────────────────────────────────────
+// Per NUTRIENTS.md API_CONTRACTS §Review Endpoints
+
+export async function getReviewQueue(candidateId = null) {
+  const params = candidateId ? `?candidate_id=${candidateId}` : ''
+  return request(`/review/queue${params}`)
+}
+
+export async function approvePipeline(pipelineId) {
+  return request(`/review/${pipelineId}/approve`, {
+    method: 'POST',
+  })
+}
+
+export async function rejectPipeline(pipelineId, reason = null) {
+  return request(`/review/${pipelineId}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
+}
+
+// ─── Health ───────────────────────────────────────────────────────────────────
+// Per NUTRIENTS.md API_CONTRACTS §Health Endpoint
+
+export async function getHealth() {
+  return request('/health')
 }

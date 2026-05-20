@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { routes } from './lib/routes'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import VerifyAuth from './pages/VerifyAuth'
@@ -12,53 +13,102 @@ import ReviewQueue from './pages/ReviewQueue'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
 
+/**
+ * Protected route wrapper.
+ * Redirects to login if unauthenticated.
+ * Optionally requires onboarding completion.
+ */
 function ProtectedRoute({ requireOnboarded = false }) {
   const { user, loading } = useAuth()
-  if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--black)' }}>
-      <div className="spinner" />
-    </div>
-  )
-  if (!user) return <Navigate to="/login" replace />
-  if (requireOnboarded && !user.is_onboarded) return <Navigate to="/onboarding" replace />
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)' }}>
+        <div className="spinner" />
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <Navigate to={routes.login} replace />
+  }
+
+  if (requireOnboarded && !user.is_onboarded) {
+    return <Navigate to={routes.onboarding} replace />
+  }
+
   return <Outlet />
 }
 
+/**
+ * Public route wrapper.
+ * Redirects authenticated users to appropriate destination.
+ */
 function PublicRoute() {
   const { user, loading } = useAuth()
-  if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--black)' }}>
-      <div className="spinner" />
-    </div>
-  )
-  if (user) return <Navigate to={user.is_onboarded ? '/dashboard' : '/onboarding'} replace />
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)' }}>
+        <div className="spinner" />
+      </div>
+    )
+  }
+
+  if (user) {
+    return <Navigate to={user.is_onboarded ? routes.overview : routes.onboarding} replace />
+  }
+
   return <Outlet />
 }
 
+/**
+ * Main application component.
+ * Routes per NUTRIENTS.md §E route map.
+ */
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Landing />} />
+          {/* Public landing page */}
+          <Route path={routes.landing} element={<Landing />} />
+
+          {/* Auth routes — redirect authenticated users */}
           <Route element={<PublicRoute />}>
-            <Route path="/login" element={<Login />} />
+            <Route path={routes.login} element={<Login />} />
           </Route>
-          <Route path="/auth/verify" element={<VerifyAuth />} />
+
+          {/* Magic link verification — no auth required */}
+          <Route path={routes.verifyAuth} element={<VerifyAuth />} />
+
+          {/* Onboarding — requires auth, no onboarding required */}
           <Route element={<ProtectedRoute />}>
-            <Route path="/onboarding" element={<Onboarding />} />
+            <Route path={routes.onboarding} element={<Onboarding />} />
           </Route>
+
+          {/* Dashboard routes — requires auth + onboarding */}
           <Route element={<ProtectedRoute requireOnboarded />}>
-            <Route path="/dashboard" element={<DashboardLayout />}>
-              <Route index element={<Overview />} />
-              <Route path="candidates" element={<Candidates />} />
-              <Route path="pipeline" element={<Pipeline />} />
-              <Route path="review" element={<ReviewQueue />} />
-              <Route path="analytics" element={<Analytics />} />
-              <Route path="settings" element={<Settings />} />
+            <Route element={<DashboardLayout />}>
+              <Route path={routes.overview} element={<Overview />} />
+              <Route path={routes.candidates} element={<Candidates />} />
+              <Route path={routes.pipeline} element={<Pipeline />} />
+              <Route path={routes.reviewQueue} element={<ReviewQueue />} />
+              <Route path={routes.analytics} element={<Analytics />} />
+              <Route path={routes.settings} element={<Settings />} />
             </Route>
           </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
+
+          {/* Legacy redirect: /dashboard/* → new routes */}
+          <Route path="/dashboard" element={<Navigate to={routes.overview} replace />} />
+          <Route path="/dashboard/candidates" element={<Navigate to={routes.candidates} replace />} />
+          <Route path="/dashboard/pipeline" element={<Navigate to={routes.pipeline} replace />} />
+          <Route path="/dashboard/review" element={<Navigate to={routes.reviewQueue} replace />} />
+          <Route path="/dashboard/analytics" element={<Navigate to={routes.analytics} replace />} />
+          <Route path="/dashboard/settings" element={<Navigate to={routes.settings} replace />} />
+
+          {/* Catch-all */}
+          <Route path="*" element={<Navigate to={routes.landing} replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

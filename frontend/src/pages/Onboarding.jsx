@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { uploadResume, saveProfile } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
+import { routes } from '../lib/routes'
 
 /* ── Step dots ── */
 function Steps({ current }) {
@@ -179,7 +180,7 @@ function SuccessStep() {
       </div>
       <h2 className="t-serif" style={{ fontSize: 28, marginBottom: 12 }}>You're all set, Space Cowboy.</h2>
       <p className="t-body" style={{ marginBottom: 36 }}>Your AI talent agent is ready. Head to the dashboard to launch your first discovery run.</p>
-      <button onClick={() => navigate('/dashboard')} className="btn-primary">Go to dashboard →</button>
+      <button onClick={() => navigate(routes.overview)} className="btn-primary">Go to dashboard →</button>
     </div>
   )
 }

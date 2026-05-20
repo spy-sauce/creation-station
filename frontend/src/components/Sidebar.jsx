@@ -1,19 +1,20 @@
 import { NavLink } from 'react-router-dom'
 import { LayoutDashboard, Users, GitPullRequestArrow, ClipboardCheck, BarChart3, Settings, Zap } from 'lucide-react'
+import { routes } from '../lib/routes'
 
 const nav = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Overview', end: true },
-  { to: '/dashboard/candidates', icon: Users, label: 'Candidates' },
-  { to: '/dashboard/pipeline', icon: GitPullRequestArrow, label: 'Pipeline' },
-  { to: '/dashboard/review', icon: ClipboardCheck, label: 'Review Queue' },
-  { to: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' },
+  { to: routes.overview, icon: LayoutDashboard, label: 'Overview', end: true },
+  { to: routes.candidates, icon: Users, label: 'Candidates' },
+  { to: routes.pipeline, icon: GitPullRequestArrow, label: 'Pipeline' },
+  { to: routes.reviewQueue, icon: ClipboardCheck, label: 'Review Queue' },
+  { to: routes.analytics, icon: BarChart3, label: 'Analytics' },
 ]
 
 export default function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
-        <a href="/dashboard" className="t-label-gold" style={{ textDecoration: 'none' }}>Talent Agent</a>
+        <a href={routes.overview} className="t-label-gold" style={{ textDecoration: 'none' }}>Talent Agent</a>
       </div>
 
       <nav className="sidebar-nav">
@@ -26,7 +27,7 @@ export default function Sidebar() {
       </nav>
 
       <div className="sidebar-footer">
-        <NavLink to="/dashboard/settings" className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}>
+        <NavLink to={routes.settings} className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}>
           <Settings />
           Settings
         </NavLink>

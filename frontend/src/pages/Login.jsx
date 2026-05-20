@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { requestMagicLink, verifyMagicLink } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
+import { routes } from '../lib/routes'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -35,7 +36,7 @@ export default function Login() {
     try {
       const res = await verifyMagicLink(magicLink.token)
       login(res.access_token, { id: res.user_id, email: res.email, is_onboarded: res.is_onboarded })
-      navigate(res.is_onboarded ? '/dashboard' : '/onboarding')
+      navigate(res.is_onboarded ? routes.overview : routes.onboarding)
     } catch (err) {
       setError(err.message || 'Failed to verify link')
       setStep('email')

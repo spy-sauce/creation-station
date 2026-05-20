@@ -1,5 +1,5 @@
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { routes } from '../lib/routes'
 
 export default function Landing() {
   const navigate = useNavigate()
@@ -12,7 +12,7 @@ export default function Landing() {
         <div className="ta-nav-links" style={{ listStyle: 'none' }}>
           <a href="#features" className="ta-nav-link">Features</a>
           <a href="#how" className="ta-nav-link">Process</a>
-          <a href="/login" className="ta-nav-link" style={{ color: 'var(--gold)' }}>Enter</a>
+          <a href={routes.login} className="ta-nav-link" style={{ color: 'var(--gold)' }}>Enter</a>
         </div>
       </nav>
 
@@ -33,7 +33,7 @@ export default function Landing() {
         </p>
 
         <div className="fade-in-delay2" style={{ display: 'flex', gap: 20, marginTop: 52, flexWrap: 'wrap' }}>
-          <button onClick={() => navigate('/login')} className="btn-primary">Get started →</button>
+          <button onClick={() => navigate(routes.login)} className="btn-primary">Get started →</button>
           <a href="#how" className="btn-ghost">See how it works</a>
         </div>
       </section>
@@ -142,7 +142,7 @@ export default function Landing() {
           <p style={{ color: 'var(--muted)', fontSize: 16, marginBottom: 52 }}>
             Your next hire is already out there. Let your AI agent find them.
           </p>
-          <button onClick={() => navigate('/login')} className="btn-primary">Get started →</button>
+          <button onClick={() => navigate(routes.login)} className="btn-primary">Get started →</button>
         </div>
       </section>
 
