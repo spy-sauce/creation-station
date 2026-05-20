@@ -1,11 +1,20 @@
 # Copyright 2026 VibeSpace LLC
 # Licensed under the Apache License, Version 2.0
 
+"""
+Base model mixin providing UUID primary key and timestamps.
+
+All models should inherit from the declarative Base in backend.database
+and optionally use TimestampMixin for consistent timestamp columns.
+"""
+
 import uuid
 from datetime import datetime
+
 from sqlalchemy import DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import UUID
+
 from backend.database import Base
 
 
