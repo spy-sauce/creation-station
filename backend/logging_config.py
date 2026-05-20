@@ -1,26 +1,16 @@
 # Copyright 2026 VibeSpace LLC
 # Licensed under the Apache License, Version 2.0
 
-import structlog
-import logging
-from backend.config import settings
+"""
+DEPRECATED: Use backend.observability instead.
 
+This module re-exports from backend.observability for backwards compatibility.
+New code should import directly from backend.observability.
+"""
 
-def configure_logging() -> None:
-    """Configure structlog for the application."""
-    log_level = logging.DEBUG if settings.debug else logging.INFO
+from backend.observability.logging import configure_logging, get_logger
 
-    structlog.configure(
-        processors=[
-            structlog.contextvars.merge_contextvars,
-            structlog.processors.add_log_level,
-            structlog.processors.TimeStamper(fmt="iso"),
-            structlog.dev.ConsoleRenderer() if settings.debug else structlog.processors.JSONRenderer(),
-        ],
-        wrapper_class=structlog.make_filtering_bound_logger(log_level),
-        context_class=dict,
-        logger_factory=structlog.PrintLoggerFactory(),
-    )
+# Legacy export — prefer get_logger(__name__) in new code
+logger = get_logger()
 
-
-logger = structlog.get_logger()
+__all__ = ["configure_logging", "logger", "get_logger"]
