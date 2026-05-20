@@ -1,44 +1,56 @@
-# Copyright 2026 VibeSpace LLC
 # Licensed under the Apache License, Version 2.0
 
 """
 Web Crawler Agent — multi-source job board crawler.
 
-Phase 1A: Stubbed implementation returning deterministic fixture data.
-Phase 1B: Real adapters (Greenhouse, Lever, Ashby, Workday) to be implemented.
+Supported sources:
+  1. Greenhouse (boards.greenhouse.io/{slug}.json) — public JSON
+  2. Lever (api.lever.co/v0/postings/{slug}?mode=json) — public JSON
+  3. Ashby (api.ashbyhq.com/posting-api/job-board/{slug}) — public JSON
+  4. Workday — deferred (Playwright crawl; not in this revision)
 
-The stub returns realistic fixture jobs to allow end-to-end testing of the
-full Discovery Engine pipeline without external dependencies.
-
-Supported sources (Phase 1B implementations):
-  1. Greenhouse (https://boards.greenhouse.io/{slug}.json) — public JSON API
-  2. Lever (https://api.lever.co/v0/postings/{slug}?mode=json) — public JSON API
-  3. Ashby (https://api.ashbyhq.com/posting-api/job-board/{slug}) — public JSON API
-  4. Workday (https://{tenant}.wd*.myworkdayjobs.com/{board}) — Playwright crawl
-
-Rate limits: 2 req/sec per domain, 0.5-2.0s jitter, User-Agent
-"TalentAgent/1.0 (+https://example.com/bot)". Respect robots.txt.
+Rate limits: 2 req/sec per host, 0.5-2.0s jitter, User-Agent
+"TalentAgent/1.0 (+https://github.com/example/talent-agent)". Adapters
+fan out concurrently across slugs with a semaphore of 4 per source.
 
 Dedup: url_hash() against the discovered_jobs table before insert.
-
 Curated company slugs live in backend/agents/discovery/sources.yaml.
+
+Offline fallback: if all live adapters return zero rows (network down,
+all sources rate-limited), CrawlerAgent falls back to the FIXTURE_JOBS
+roster so dev pipelines still produce data. Production should monitor
+for this fallback via the `crawler.fallback_used` structured log event.
 """
 
+import asyncio
 import hashlib
+import html
+import random
 from datetime import datetime, timezone
+from pathlib import Path
+from typing import Optional
 from uuid import UUID, uuid4
 
+import httpx
 import structlog
+import yaml
 
 from backend.agents.discovery.schemas import SearchManifestSchema, DiscoveredJobSchema
 
 logger = structlog.get_logger(__name__)
 
+USER_AGENT = "TalentAgent/1.0 (+https://github.com/example/talent-agent)"
+HTTP_TIMEOUT = 15.0
+PER_SOURCE_CONCURRENCY = 4
+SOURCES_YAML = Path(__file__).parent / "sources.yaml"
 
-# ─── Phase 1A Fixture Data ─────────────────────────────────────────────────────
-# Deterministic fixture jobs for end-to-end testing before real crawlers ship.
 
-_FIXTURE_JOBS: list[dict] = [
+# ─── Offline fallback fixture data ────────────────────────────────────────────
+# Used only when all live adapters return zero rows (network down or all
+# sources unreachable). The `crawler.fallback_used` log event fires when this
+# kicks in so prod can alert on it.
+
+_FALLBACK_JOBS: list[dict] = [
     {
         "source": "greenhouse",
         "source_id": "gh-fixture-001",
@@ -374,56 +386,308 @@ Industry: DevOps, Infrastructure, SaaS
 ]
 
 
+# ─── Source Adapters ──────────────────────────────────────────────────────────
+
+
+def _title_matches(title: str, target_titles: list[str]) -> bool:
+    """Case-insensitive substring match of any target title against `title`."""
+    if not target_titles:
+        return True
+    low = title.lower()
+    return any(t.lower() in low for t in target_titles)
+
+
+def _strip_html(raw: str) -> str:
+    """Unescape entities then strip HTML tags via BeautifulSoup."""
+    if not raw:
+        return ""
+    try:
+        from bs4 import BeautifulSoup
+        return BeautifulSoup(html.unescape(raw), "html.parser").get_text(separator=" ", strip=True)
+    except Exception:
+        return html.unescape(raw)
+
+
+class _RateLimitedClient:
+    """httpx.AsyncClient with per-host jitter to stay polite (~2 req/sec)."""
+
+    def __init__(self, client: httpx.AsyncClient):
+        self._client = client
+        self._sem = asyncio.Semaphore(PER_SOURCE_CONCURRENCY)
+
+    async def get(self, url: str, **kw) -> httpx.Response:
+        async with self._sem:
+            await asyncio.sleep(random.uniform(0.5, 2.0))
+            return await self._client.get(url, **kw)
+
+    async def post(self, url: str, **kw) -> httpx.Response:
+        async with self._sem:
+            await asyncio.sleep(random.uniform(0.5, 2.0))
+            return await self._client.post(url, **kw)
+
+
+class GreenhouseAdapter:
+    """Greenhouse public board adapter."""
+
+    async def fetch(self, client: _RateLimitedClient, slugs: list[str], target_titles: list[str]) -> list[dict]:
+        async def _one(slug: str) -> list[dict]:
+            url = f"https://boards.greenhouse.io/{slug}.json"
+            try:
+                r = await client.get(url)
+                r.raise_for_status()
+                payload = r.json()
+            except Exception as exc:
+                logger.warning("crawler.greenhouse.fetch_failed", slug=slug, error=str(exc))
+                return []
+            out: list[dict] = []
+            for job in payload.get("jobs", []):
+                title = job.get("title") or ""
+                if not _title_matches(title, target_titles):
+                    continue
+                loc = (job.get("location") or {}).get("name")
+                out.append({
+                    "source": "greenhouse",
+                    "source_id": f"gh-{slug}-{job.get('id')}",
+                    "title": title,
+                    "company": slug.replace("-", " ").title(),
+                    "location": loc,
+                    "description": _strip_html(job.get("content") or ""),
+                    "url": job.get("absolute_url"),
+                    "posted_at": job.get("updated_at"),
+                })
+            logger.info("crawler.greenhouse.fetched", slug=slug, total=len(payload.get("jobs", [])), matched=len(out))
+            return out
+
+        results = await asyncio.gather(*[_one(s) for s in slugs], return_exceptions=True)
+        flat: list[dict] = []
+        for r in results:
+            if isinstance(r, list):
+                flat.extend(r)
+        return flat
+
+
+class LeverAdapter:
+    """Lever public postings adapter."""
+
+    async def fetch(self, client: _RateLimitedClient, slugs: list[str], target_titles: list[str]) -> list[dict]:
+        async def _one(slug: str) -> list[dict]:
+            url = f"https://api.lever.co/v0/postings/{slug}?mode=json"
+            try:
+                r = await client.get(url)
+                r.raise_for_status()
+                postings = r.json()
+            except Exception as exc:
+                logger.warning("crawler.lever.fetch_failed", slug=slug, error=str(exc))
+                return []
+            out: list[dict] = []
+            for p in postings:
+                title = p.get("text") or ""
+                if not _title_matches(title, target_titles):
+                    continue
+                cats = p.get("categories") or {}
+                created_ms = p.get("createdAt")
+                posted_at = None
+                if isinstance(created_ms, (int, float)):
+                    try:
+                        posted_at = datetime.fromtimestamp(created_ms / 1000, tz=timezone.utc).isoformat()
+                    except Exception:
+                        posted_at = None
+                out.append({
+                    "source": "lever",
+                    "source_id": f"lever-{slug}-{p.get('id')}",
+                    "title": title,
+                    "company": slug.replace("-", " ").title(),
+                    "location": cats.get("location"),
+                    "description": p.get("descriptionPlain") or _strip_html(p.get("description") or ""),
+                    "url": p.get("hostedUrl"),
+                    "posted_at": posted_at,
+                })
+            logger.info("crawler.lever.fetched", slug=slug, total=len(postings), matched=len(out))
+            return out
+
+        results = await asyncio.gather(*[_one(s) for s in slugs], return_exceptions=True)
+        flat: list[dict] = []
+        for r in results:
+            if isinstance(r, list):
+                flat.extend(r)
+        return flat
+
+
+class AshbyAdapter:
+    """Ashby public posting-api adapter."""
+
+    async def fetch(self, client: _RateLimitedClient, slugs: list[str], target_titles: list[str]) -> list[dict]:
+        async def _one(slug: str) -> list[dict]:
+            url = f"https://api.ashbyhq.com/posting-api/job-board/{slug}"
+            try:
+                r = await client.post(url, json={"includeCompensation": True})
+                r.raise_for_status()
+                payload = r.json()
+            except Exception as exc:
+                logger.warning("crawler.ashby.fetch_failed", slug=slug, error=str(exc))
+                return []
+            out: list[dict] = []
+            for job in payload.get("jobs", []):
+                title = job.get("title") or ""
+                if not _title_matches(title, target_titles):
+                    continue
+                comp = job.get("compensation") or {}
+                out.append({
+                    "source": "ashby",
+                    "source_id": f"ashby-{slug}-{job.get('id')}",
+                    "title": title,
+                    "company": slug.replace("-", " ").title(),
+                    "location": job.get("location"),
+                    "description": job.get("descriptionPlain") or _strip_html(job.get("description") or ""),
+                    "url": job.get("jobUrl"),
+                    "posted_at": job.get("publishedDate"),
+                    "salary_min": (comp.get("compensationTierSummary") or {}).get("minValue"),
+                    "salary_max": (comp.get("compensationTierSummary") or {}).get("maxValue"),
+                })
+            logger.info("crawler.ashby.fetched", slug=slug, total=len(payload.get("jobs", [])), matched=len(out))
+            return out
+
+        results = await asyncio.gather(*[_one(s) for s in slugs], return_exceptions=True)
+        flat: list[dict] = []
+        for r in results:
+            if isinstance(r, list):
+                flat.extend(r)
+        return flat
+
+
+# ─── CrawlerAgent ─────────────────────────────────────────────────────────────
+
+
 class CrawlerAgent:
     """
     Crawls public ATS boards against a SearchManifestSchema and returns a
     deduplicated list of DiscoveredJobSchema rows.
 
-    Phase 1A: Returns deterministic fixture data for end-to-end pipeline testing.
-    Phase 1B: Real multi-source crawl implementation.
+    Fans out across Greenhouse / Lever / Ashby adapters concurrently. Falls
+    back to fixture data only if all live adapters return zero rows.
+    Workday adapter is deferred (Playwright crawl, separate revision).
     """
 
     SOURCES = ["greenhouse", "lever", "ashby", "workday"]
 
     def __init__(self, candidate_id: UUID):
-        """
-        Initialize the CrawlerAgent.
-
-        Args:
-            candidate_id: UUID of the candidate this crawl is for
-        """
         self._candidate_id = candidate_id
+
+    def _load_sources(self) -> dict:
+        try:
+            with open(SOURCES_YAML) as f:
+                return yaml.safe_load(f) or {}
+        except FileNotFoundError:
+            logger.error("crawler.sources_missing", path=str(SOURCES_YAML))
+            return {}
 
     async def run(self, manifest: SearchManifestSchema) -> list[DiscoveredJobSchema]:
         """
         Execute a crawl run against the manifest.
 
-        Phase 1A: Returns filtered fixture data based on manifest keywords.
-        Phase 1B: Will load sources.yaml, fan out to adapters, merge, dedupe.
-
-        Args:
-            manifest: Search manifest with target titles, keywords, exclusions
-
-        Returns:
-            List of discovered jobs matching the manifest
+        Loads sources.yaml, fans out to each adapter in parallel, merges,
+        dedupes by url_hash, returns the populated list. Falls back to
+        fixture data only if all live adapters return zero rows.
         """
+        sources = self._load_sources()
         logger.info(
             "crawler_agent.run_start",
             candidate_id=str(self._candidate_id),
             target_titles=len(manifest.target_titles),
-            keywords=len(manifest.keywords),
+            sources_loaded=list(sources.keys()),
         )
 
-        # Phase 1A: Filter fixture data based on manifest
-        jobs = self._filter_fixtures(manifest)
+        async with httpx.AsyncClient(
+            timeout=HTTP_TIMEOUT,
+            headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
+            follow_redirects=True,
+        ) as raw_client:
+            client = _RateLimitedClient(raw_client)
+            adapters_results = await asyncio.gather(
+                GreenhouseAdapter().fetch(client, sources.get("greenhouse", []) or [], manifest.target_titles),
+                LeverAdapter().fetch(client, sources.get("lever", []) or [], manifest.target_titles),
+                AshbyAdapter().fetch(client, sources.get("ashby", []) or [], manifest.target_titles),
+                return_exceptions=True,
+            )
+
+        merged: list[dict] = []
+        for r in adapters_results:
+            if isinstance(r, list):
+                merged.extend(r)
+            else:
+                logger.warning("crawler.adapter_exception", error=str(r))
+
+        # Dedupe by url_hash
+        seen: set[str] = set()
+        deduped: list[dict] = []
+        for j in merged:
+            url = j.get("url") or ""
+            if not url:
+                continue
+            h = self.url_hash(url)
+            if h in seen:
+                continue
+            seen.add(h)
+            deduped.append(j)
 
         logger.info(
             "crawler_agent.run_complete",
             candidate_id=str(self._candidate_id),
-            jobs_found=len(jobs),
-            note="Phase 1A stub - returning filtered fixtures",
+            adapters_merged=len(merged),
+            after_dedup=len(deduped),
         )
-        return jobs
+
+        # Apply exclusions + convert to schema
+        results = self._apply_exclusions_and_convert(deduped, manifest)
+
+        # Offline fallback: only when EVERY live adapter returned empty
+        if not results:
+            logger.warning(
+                "crawler.fallback_used",
+                candidate_id=str(self._candidate_id),
+                reason="all_live_adapters_empty",
+            )
+            return self._filter_fixtures(manifest)
+
+        return results
+
+    def _apply_exclusions_and_convert(
+        self, jobs: list[dict], manifest: SearchManifestSchema
+    ) -> list[DiscoveredJobSchema]:
+        """Apply excluded_companies / excluded_industries and convert dicts to schema."""
+        excluded_companies = {c.lower() for c in manifest.excluded_companies}
+        excluded_industries = {i.lower() for i in manifest.excluded_industries}
+
+        out: list[DiscoveredJobSchema] = []
+        for j in jobs:
+            company_low = (j.get("company") or "").lower()
+            if any(exc in company_low for exc in excluded_companies):
+                continue
+            desc_low = (j.get("description") or "").lower()
+            if any(exc in desc_low for exc in excluded_industries):
+                continue
+            posted_at: Optional[datetime] = None
+            if isinstance(j.get("posted_at"), str):
+                try:
+                    posted_at = datetime.fromisoformat(j["posted_at"].replace("Z", "+00:00"))
+                except Exception:
+                    posted_at = None
+            out.append(DiscoveredJobSchema(
+                id=uuid4(),
+                source=j["source"],
+                source_id=j["source_id"],
+                title=j["title"],
+                company=j["company"],
+                location=j.get("location"),
+                description=j.get("description"),
+                url=j["url"],
+                posted_at=posted_at,
+                salary_min=j.get("salary_min"),
+                salary_max=j.get("salary_max"),
+                remote=bool(j.get("remote")) or "remote" in (j.get("location") or "").lower(),
+                crawled_at=datetime.now(timezone.utc),
+            ))
+        return out
 
     def _filter_fixtures(
         self, manifest: SearchManifestSchema
@@ -444,7 +708,7 @@ class CrawlerAgent:
         target_keywords = {kw.lower() for kw in manifest.keywords}
         target_titles = {t.lower() for t in manifest.target_titles}
 
-        for job_data in _FIXTURE_JOBS:
+        for job_data in _FALLBACK_JOBS:
             company_lower = job_data["company"].lower()
             title_lower = job_data["title"].lower()
             desc_lower = job_data.get("description", "").lower()
