@@ -1,0 +1,92 @@
+# ATS form selectors — one entry per known host. Each field name maps to a
+# list of CSS selectors tried in order; first match wins.
+#
+# Loaded by AutoApplyAgent.__init__ via yaml.safe_load.
+
+greenhouse:
+  first_name:
+    - "input#first_name"
+    - "input[name='job_application[first_name]']"
+  last_name:
+    - "input#last_name"
+    - "input[name='job_application[last_name]']"
+  email:
+    - "input#email"
+    - "input[name='job_application[email]']"
+  phone:
+    - "input#phone"
+    - "input[name='job_application[phone]']"
+  resume_file:
+    - "input[type='file']#resume"
+    - "input[name='job_application[resume]']"
+    - "input[type='file'][name*='resume']"
+  cover_letter_file:
+    - "input[type='file']#cover_letter"
+    - "input[type='file'][name*='cover']"
+  linkedin:
+    - "input[name='job_application[answers_attributes][0][text_value]']"
+    - "input[id*='linkedin']"
+  submit:
+    - "input[type='submit']#submit_app"
+    - "button[type='submit']"
+
+lever:
+  # Lever uses a single 'name' field — split in the engine before fill.
+  name:
+    - "input[name='name']"
+  email:
+    - "input[name='email']"
+  phone:
+    - "input[name='phone']"
+  resume_file:
+    - "input[type='file'][name='resume']"
+  linkedin:
+    - "input[name='urls[LinkedIn]']"
+    - "input[name*='linkedin' i]"
+  submit:
+    - "button[type='submit'].posting-btn-submit"
+    - "button[type='submit']"
+
+ashby:
+  name:
+    - "input[name='_systemfield_name']"
+  email:
+    - "input[name='_systemfield_email']"
+  phone:
+    - "input[name='_systemfield_phone']"
+  resume_file:
+    - "input[type='file'][data-testid='resume-upload']"
+    - "input[type='file'][aria-label*='resume' i]"
+  linkedin:
+    - "input[name*='LinkedIn']"
+    - "input[name*='linkedin']"
+  submit:
+    - "button[data-testid='submit-button']"
+    - "button[type='submit']"
+
+workday:
+  # Workday is multi-step; selectors per major step.
+  step1_continue:
+    - "button[data-automation-id='continueButton']"
+  email:
+    - "input[data-automation-id='email']"
+  password:
+    - "input[data-automation-id='password']"
+  resume_upload:
+    - "input[data-automation-id='file-upload-input-ref']"
+  first_name:
+    - "input[data-automation-id='legalNameSection_firstName']"
+  last_name:
+    - "input[data-automation-id='legalNameSection_lastName']"
+  phone:
+    - "input[data-automation-id='phone-number']"
+  submit:
+    - "button[data-automation-id='bottom-navigation-next-button']"
+
+# Any of these visible → mark REQUIRES_MANUAL (no auto-solve).
+captcha_indicators:
+  - "iframe[src*='recaptcha']"
+  - "iframe[src*='hcaptcha']"
+  - "div.cf-challenge"
+  - "div[data-sitekey]"
+  - "iframe[title*='challenge' i]"

@@ -29,46 +29,33 @@ from backend.agents.discovery.schemas import CandidateSchema
 
 logger = structlog.get_logger(__name__)
 
-# ─── ATS Field Maps ────────────────────────────────────────────────────────────
-# Known selectors for the most common ATS platforms
+# ─── ATS Selectors — loaded from ats_selectors.yaml ────────────────────────────
 
-_ATS_FIELD_MAPS = {
-    "greenhouse": {
-        "first_name": "#first_name",
-        "last_name": "#last_name",
-        "email": "#email",
-        "phone": "#phone",
-        "resume_upload": "input[type='file']",
-        "linkedin": "input[placeholder*='LinkedIn'], input[name*='linkedin']",
-        "github": "input[placeholder*='GitHub'], input[name*='github']",
-        "cover_letter": "textarea[name*='cover_letter'], #cover_letter",
-    },
-    "lever": {
-        "first_name": "input[name='name']",  # Lever uses full name
-        "email": "input[name='email']",
-        "phone": "input[name='phone']",
-        "resume_upload": "input[type='file']",
-        "linkedin": "input[name='urls[LinkedIn]']",
-        "github": "input[name='urls[GitHub]']",
-        "cover_letter": "textarea[name='comments']",
-    },
-    "workday": {
-        "first_name": "input[data-automation-id='legalNameSection_firstName']",
-        "last_name": "input[data-automation-id='legalNameSection_lastName']",
-        "email": "input[data-automation-id='email']",
-        "phone": "input[data-automation-id='phone-number']",
-        "resume_upload": "input[type='file']",
-    },
-    "ashby": {
-        "first_name": "input[name='firstName'], input[placeholder*='First']",
-        "last_name": "input[name='lastName'], input[placeholder*='Last']",
-        "email": "input[name='email'], input[type='email']",
-        "phone": "input[name='phone'], input[type='tel']",
-        "resume_upload": "input[type='file']",
-        "linkedin": "input[placeholder*='LinkedIn']",
-        "github": "input[placeholder*='GitHub']",
-    },
-}
+_SELECTORS_YAML = Path(__file__).parent / "ats_selectors.yaml"
+
+
+def _load_selectors() -> dict:
+    """Load ats_selectors.yaml. Returns empty dict if missing (engine falls back to query-by-attribute)."""
+    try:
+        import yaml
+        with open(_SELECTORS_YAML) as f:
+            data = yaml.safe_load(f) or {}
+        return data
+    except Exception as exc:
+        logger.warning("auto_apply.selectors_load_failed", error=str(exc))
+        return {}
+
+
+def _selectors_for(field_map: dict, field: str) -> list[str]:
+    """Return list of selectors for a field. Accepts either str (legacy) or list[str]."""
+    raw = field_map.get(field)
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        return [s.strip() for s in raw.split(",") if s.strip()]
+    if isinstance(raw, list):
+        return [str(s) for s in raw]
+    return []
 
 
 def _detect_ats(url: str) -> str:
@@ -95,6 +82,7 @@ class AutoApplyAgent:
 
     def __init__(self, screenshot_dir: str = "./screenshots"):
         self._screenshot_dir = Path(screenshot_dir)
+        self._selectors = _load_selectors()
 
     async def submit(
         self,
@@ -176,46 +164,54 @@ class AutoApplyAgent:
                     fallback_url=url,
                 )
 
-            field_map = _ATS_FIELD_MAPS.get(ats, {})
+            field_map = self._selectors.get(ats, {})
 
             # Fill name fields
             name_parts = candidate.name.split(" ", 1)
             first_name = name_parts[0]
             last_name = name_parts[1] if len(name_parts) > 1 else ""
 
-            if ats == "lever":
-                # Lever uses a single full name field
-                if await self._fill_field(page, field_map.get("first_name", ""), candidate.name):
+            if ats in ("lever", "ashby"):
+                # Lever/Ashby use a single 'name' field
+                name_sels = _selectors_for(field_map, "name") or _selectors_for(field_map, "first_name")
+                if await self._fill_field(page, name_sels, candidate.name):
                     fields_completed.append("full_name")
             else:
-                if await self._fill_field(page, field_map.get("first_name", ""), first_name):
+                if await self._fill_field(page, _selectors_for(field_map, "first_name"), first_name):
                     fields_completed.append("first_name")
-                if await self._fill_field(page, field_map.get("last_name", ""), last_name):
+                if await self._fill_field(page, _selectors_for(field_map, "last_name"), last_name):
                     fields_completed.append("last_name")
 
-            if await self._fill_field(page, field_map.get("email", "input[type='email']"), candidate.email):
+            email_sels = _selectors_for(field_map, "email") or ["input[type='email']"]
+            if await self._fill_field(page, email_sels, candidate.email):
                 fields_completed.append("email")
 
             await page.screenshot(path=str(shot_dir / "02_basic_info.png"))
 
             # Upload resume PDF
             if resume.pdf_path and os.path.exists(resume.pdf_path):
-                upload_sel = field_map.get("resume_upload", "input[type='file']")
-                try:
-                    file_input = await page.query_selector(upload_sel)
-                    if file_input:
-                        await file_input.set_input_files(resume.pdf_path)
-                        fields_completed.append("resume")
-                        await page.screenshot(path=str(shot_dir / "03_resume_uploaded.png"))
-                except Exception as e:
-                    logger.warning("auto_apply.upload_failed", error=str(e))
+                upload_sels = (
+                    _selectors_for(field_map, "resume_file")
+                    or _selectors_for(field_map, "resume_upload")
+                    or ["input[type='file']"]
+                )
+                for upload_sel in upload_sels:
+                    try:
+                        file_input = await page.query_selector(upload_sel)
+                        if file_input:
+                            await file_input.set_input_files(resume.pdf_path)
+                            fields_completed.append("resume")
+                            await page.screenshot(path=str(shot_dir / "03_resume_uploaded.png"))
+                            break
+                    except Exception as e:
+                        logger.debug("auto_apply.upload_attempt_failed", selector=upload_sel, error=str(e))
 
             # LinkedIn / GitHub
             if candidate.linkedin_url:
-                if await self._fill_field(page, field_map.get("linkedin", ""), candidate.linkedin_url):
+                if await self._fill_field(page, _selectors_for(field_map, "linkedin"), candidate.linkedin_url):
                     fields_completed.append("linkedin")
             if candidate.github_url:
-                if await self._fill_field(page, field_map.get("github", ""), candidate.github_url):
+                if await self._fill_field(page, _selectors_for(field_map, "github"), candidate.github_url):
                     fields_completed.append("github")
 
             await page.screenshot(path=str(shot_dir / "04_filled.png"))
@@ -241,32 +237,42 @@ class AutoApplyAgent:
         finally:
             await page.close()
 
-    async def _fill_field(self, page: Page, selector: str, value: str) -> bool:
-        """Attempt to fill a form field. Returns True if successful."""
-        if not selector or not value:
+    async def _fill_field(self, page: Page, selectors, value: str) -> bool:
+        """
+        Attempt to fill a form field. `selectors` is a list of CSS selectors
+        tried in order; first match wins. Accepts a single string for
+        backwards compatibility (will be split on comma).
+        """
+        if not value:
             return False
-        try:
-            # Try each selector if comma-separated
-            for sel in [s.strip() for s in selector.split(",")]:
+        if isinstance(selectors, str):
+            selectors = [s.strip() for s in selectors.split(",") if s.strip()]
+        if not selectors:
+            return False
+        for sel in selectors:
+            try:
                 element = await page.query_selector(sel)
                 if element:
                     await element.fill(value)
                     return True
-        except Exception as e:
-            logger.debug("auto_apply.field_fill_failed", selector=selector, error=str(e))
+            except Exception as e:
+                logger.debug("auto_apply.field_fill_failed", selector=sel, error=str(e))
         return False
 
     async def _has_captcha(self, page: Page) -> bool:
-        """Detect common CAPTCHA patterns on the page."""
-        captcha_signals = [
+        """Detect CAPTCHA via patterns from ats_selectors.yaml."""
+        indicators = self._selectors.get("captcha_indicators") or [
             "iframe[src*='recaptcha']",
             "iframe[src*='hcaptcha']",
             ".g-recaptcha",
             "#captcha",
             "div[class*='captcha']",
         ]
-        for signal in captcha_signals:
-            element = await page.query_selector(signal)
-            if element:
-                return True
+        for signal in indicators:
+            try:
+                element = await page.query_selector(signal)
+                if element:
+                    return True
+            except Exception:
+                continue
         return False
