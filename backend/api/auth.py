@@ -14,6 +14,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 import jwt
+import resend
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -28,6 +29,22 @@ from backend.models.auth import User, MagicLink
 logger = structlog.get_logger(__name__)
 router = APIRouter()
 security = HTTPBearer(auto_error=False)
+
+
+# ─── PII Redaction ────────────────────────────────────────────────────────────
+
+def redact_email(email: str) -> str:
+    """Redact email for safe logging. e.g. 'spy@seanyoung.biz' → 's**@s***.biz'"""
+    if not email or "@" not in email:
+        return "[redacted]"
+    local, domain = email.split("@", 1)
+    domain_parts = domain.rsplit(".", 1)
+    redacted_local = local[0] + "**" if local else "**"
+    if len(domain_parts) == 2:
+        redacted_domain = domain_parts[0][0] + "***." + domain_parts[1]
+    else:
+        redacted_domain = "***"
+    return f"{redacted_local}@{redacted_domain}"
 
 
 # ─── Schemas ─────────────────────────────────────────────────────────────────
@@ -92,6 +109,65 @@ def decode_jwt(token: str) -> dict:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
+# ─── Resend Email ─────────────────────────────────────────────────────────────
+
+async def send_magic_link_email(email: str, magic_link_url: str) -> bool:
+    """
+    Send magic link email via Resend.
+
+    Returns True if email was sent successfully, False otherwise.
+    Falls back gracefully if Resend is not configured.
+    """
+    if not settings.resend_api_key:
+        logger.warning(
+            "auth.resend_not_configured",
+            email_redacted=redact_email(email),
+            message="Resend API key not set, email not sent",
+        )
+        return False
+
+    resend.api_key = settings.resend_api_key
+
+    try:
+        resend.Emails.send({
+            "from": settings.resend_from_email,
+            "to": email,
+            "subject": "Your Talent Agent Login Link",
+            "html": f"""
+            <div style="font-family: 'DM Sans', -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background-color: #0A0A0A; color: #FAFAFA;">
+                <h1 style="font-family: 'Playfair Display', Georgia, serif; color: #C9A227; font-size: 28px; margin-bottom: 24px;">
+                    Talent Agent
+                </h1>
+                <p style="font-size: 16px; line-height: 1.6; margin-bottom: 24px;">
+                    Click the button below to sign in to your account. This link expires in {settings.magic_link_expiry_minutes} minutes.
+                </p>
+                <a href="{magic_link_url}" style="display: inline-block; background-color: #C9A227; color: #0A0A0A; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+                    Sign In
+                </a>
+                <p style="font-size: 14px; color: #737373; margin-top: 32px; line-height: 1.6;">
+                    If you didn't request this link, you can safely ignore this email.
+                </p>
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 32px 0;">
+                <p style="font-size: 12px; color: #737373;">
+                    VibeSpace LLC · The Dot Connects
+                </p>
+            </div>
+            """,
+        })
+        logger.info(
+            "auth.email_sent",
+            email_redacted=redact_email(email),
+        )
+        return True
+    except Exception as e:
+        logger.error(
+            "auth.email_send_failed",
+            email_redacted=redact_email(email),
+            error=str(e),
+        )
+        return False
+
+
 # ─── Auth Dependency ─────────────────────────────────────────────────────────
 
 async def get_current_user(
@@ -130,9 +206,10 @@ async def request_magic_link(
 
     In dev mode (DEBUG=true), returns the magic link directly in the response
     so you can click it without needing email infrastructure.
-    In production, this would send the link via email.
+    In production, sends the link via Resend email service.
     """
     email = payload.email.lower().strip()
+    email_redacted = redact_email(email)
 
     # Find or create user
     result = await db.execute(select(User).where(User.email == email))
@@ -142,7 +219,11 @@ async def request_magic_link(
         user = User(email=email)
         db.add(user)
         await db.flush()
-        logger.info("auth.user_created", email=email, user_id=str(user.id))
+        logger.info(
+            "auth.user_created",
+            email_redacted=email_redacted,
+            user_id=str(user.id),
+        )
 
     # Generate magic link token
     token = secrets.token_urlsafe(48)
@@ -156,24 +237,40 @@ async def request_magic_link(
     db.add(magic_link_record)
     await db.commit()
 
-    # Build the magic link URL
-    base_url = str(request.base_url).rstrip("/")
-    # Frontend will handle this route
-    magic_link_url = f"{request.headers.get('origin', 'http://localhost:5173')}/auth/verify?token={token}"
+    # Build the magic link URL using frontend origin
+    origin = request.headers.get("origin", "http://localhost:5173")
+    magic_link_url = f"{origin}/auth/verify?token={token}"
 
-    logger.info("auth.magic_link_created", email=email, expires_at=expires_at.isoformat())
+    logger.info(
+        "auth.magic_link_created",
+        email_redacted=email_redacted,
+        expires_at=expires_at.isoformat(),
+    )
 
     if settings.debug:
+        # Dev mode: return link directly for easy testing
         return RequestLinkResponse(
             message="Magic link created. Click to log in.",
             magic_link=magic_link_url,
             token=token,
         )
     else:
-        # TODO: Send email with magic link via email service
-        return RequestLinkResponse(
-            message="Check your email for a login link.",
-        )
+        # Production: send email via Resend
+        email_sent = await send_magic_link_email(email, magic_link_url)
+        if email_sent:
+            return RequestLinkResponse(
+                message="Check your email for a login link.",
+            )
+        else:
+            # Graceful degradation if email fails
+            logger.warning(
+                "auth.email_fallback",
+                email_redacted=email_redacted,
+                message="Email service unavailable",
+            )
+            return RequestLinkResponse(
+                message="Check your email for a login link.",
+            )
 
 
 @router.post("/verify", response_model=AuthResponse)
@@ -218,7 +315,11 @@ async def verify_magic_link(
     # Issue JWT
     access_token = create_jwt(user.id, user.email)
 
-    logger.info("auth.login_success", email=user.email, user_id=str(user.id))
+    logger.info(
+        "auth.login_success",
+        email_redacted=redact_email(user.email),
+        user_id=str(user.id),
+    )
 
     return AuthResponse(
         access_token=access_token,

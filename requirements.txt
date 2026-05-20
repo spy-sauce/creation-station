@@ -37,6 +37,7 @@ pytest-httpx==0.32.0
 
 # Auth
 PyJWT==2.9.0
+resend==2.4.0
 
 # PDF parsing
 pymupdf==1.24.10

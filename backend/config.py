@@ -31,6 +31,8 @@ class Settings(BaseSettings):
 
     jwt_secret: str = "change-me-in-production"
     magic_link_expiry_minutes: int = 15
+    resend_api_key: str = ""
+    resend_from_email: str = "Talent Agent <noreply@seanyoung.biz>"
 
     test_candidate_email: str = ""
 
