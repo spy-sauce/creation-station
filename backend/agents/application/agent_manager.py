@@ -816,25 +816,45 @@ class AgentManager:
         auto_apply = AutoApplyAgent()
 
         async def handle_parse_jd(input_data: dict) -> dict:
-            """Execute JD parsing via the real JDParser agent."""
-            from backend.agents.discovery.schemas import DiscoveredJobSchema, ScoredJobSchema, ScoreBreakdown
-            job_schema = DiscoveredJobSchema(
-                id=input_data["job_id"],
-                candidate_id=input_data.get("candidate_id", "00000000-0000-0000-0000-000000000000"),
-                title=input_data["title"],
-                company=input_data["company"],
-                description=input_data["description"],
+            """Execute JD parsing via the real JDParser agent.
+
+            JDParser.parse() expects a ScoredJobSchema with a nested .job attribute
+            containing the DiscoveredJobSchema. Since the Pydantic schema has
+            denormalized fields instead of a nested relationship, we create an
+            adapter object that provides the expected interface.
+            """
+            from uuid import UUID as UUIDType
+            from backend.agents.discovery.schemas import (
+                DiscoveredJobSchema,
+                ScoredJobSchema,
+                ScoreBreakdown,
+            )
+
+            # Build the discovered job schema with correct fields
+            job_id = input_data.get("job_id") or "00000000-0000-0000-0000-000000000000"
+            if isinstance(job_id, str):
+                job_id = UUIDType(job_id)
+
+            discovered_job = DiscoveredJobSchema(
+                id=job_id,
+                source=input_data.get("source", "agent_manager"),
+                source_id=input_data.get("source_id", str(job_id)),
+                title=input_data.get("title", ""),
+                company=input_data.get("company", ""),
+                location=input_data.get("location"),
+                description=input_data.get("description", ""),
                 url=input_data.get("url", ""),
-                url_hash=input_data.get("url_hash", ""),
-                source=input_data.get("source", "cloud_agent"),
             )
-            scored = ScoredJobSchema(
-                job=job_schema,
-                scores=ScoreBreakdown(),
-                composite_score=70,
-                reasoning="",
-            )
-            result = await jd_parser.parse(scored)
+
+            # JDParser expects scored.job.* access pattern, so create adapter
+            class ScoredJobAdapter:
+                """Adapter to provide .job attribute for JDParser compatibility."""
+
+                def __init__(self, job: DiscoveredJobSchema):
+                    self.job = job
+
+            adapter = ScoredJobAdapter(discovered_job)
+            result = await jd_parser.parse(adapter)
             return result.model_dump(mode="json")
 
         async def handle_tailor_resume(input_data: dict) -> dict:

@@ -37,6 +37,15 @@ from backend.agents.application.outreach_composer import OutreachComposer
 from backend.agents.application.auto_apply import AutoApplyAgent
 from backend.agents.application.crm import CRM
 from backend.agents.application.orchestrator import ApplicationOrchestrator
+from backend.agents.application.agent_manager import (
+    AgentManager,
+    AgentStatus,
+    AgentExecutionRecord,
+    SubAgentDefinition,
+    SubAgentRegistry,
+    SubAgentRunner,
+    PipelineDispatcher,
+)
 
 __all__ = [
     # Schemas
@@ -57,4 +66,12 @@ __all__ = [
     "AutoApplyAgent",
     "CRM",
     "ApplicationOrchestrator",
+    # Agent Manager (agents-agent biome)
+    "AgentManager",
+    "AgentStatus",
+    "AgentExecutionRecord",
+    "SubAgentDefinition",
+    "SubAgentRegistry",
+    "SubAgentRunner",
+    "PipelineDispatcher",
 ]
