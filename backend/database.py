@@ -25,9 +25,15 @@ class Base(DeclarativeBase):
 
 
 async def get_db():
-    """FastAPI dependency that yields an async database session."""
+    """
+    FastAPI dependency that yields an async database session.
+
+    Automatically rolls back on exception to prevent partial commits.
+    Contract: HYPHA-API.md Acceptance Criteria
+    """
     async with AsyncSessionLocal() as session:
         try:
             yield session
-        finally:
-            await session.close()
+        except Exception:
+            await session.rollback()
+            raise

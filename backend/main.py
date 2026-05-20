@@ -5,14 +5,13 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 import redis.asyncio as aioredis
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config import settings
 from backend.observability import configure_logging, get_logger, HealthResponse
 from backend.observability.health import build_health_response
-from backend.database import engine, Base, get_db, AsyncSessionLocal
+from backend.database import engine, Base, AsyncSessionLocal
 from backend.api.router import router
 from backend.seed import seed_admin_user
 
@@ -66,15 +65,31 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
 
 
+# OpenAPI docs only in non-prod environments
+# Contract: HYPHA-API.md Acceptance Criteria
+_docs_url = "/docs" if settings.debug else None
+_openapi_url = "/openapi.json" if settings.debug else None
+
 app = FastAPI(
     title="Talent Agent API",
     version=settings.app_version,
     lifespan=lifespan,
+    docs_url=_docs_url,
+    openapi_url=_openapi_url,
+    redoc_url=None,  # Use Swagger UI only
+)
+
+# CORS origins: explicit localhost for dev, production domain for prod
+# Contract: HYPHA-API.md Acceptance Criteria
+_cors_origins = (
+    ["http://localhost:5173", "http://127.0.0.1:5173"]
+    if settings.debug
+    else ["https://seanyoung.biz"]
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if settings.debug else ["https://seanyoung.biz"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
