@@ -1,0 +1,131 @@
+# Copyright 2026 VibeSpace LLC
+# Licensed under the Apache License, Version 2.0
+#
+# Curated company slugs for the CrawlerAgent multi-source job board crawler.
+#
+# Phase 1A: Not consumed — CrawlerAgent returns fixtures.
+# Phase 1B: CrawlerAgent loads this file and fans out to each adapter.
+#
+# Format:
+#   greenhouse: list of Greenhouse board slugs (boards.greenhouse.io/{slug}.json)
+#   lever: list of Lever company slugs (api.lever.co/v0/postings/{slug})
+#   ashby: list of Ashby board slugs (api.ashbyhq.com/posting-api/job-board/{slug})
+#   workday: list of {tenant, board} pairs (tenant.wd*.myworkdayjobs.com/board)
+#
+# Selection criteria:
+#   - Companies known to hire for AI/ML engineering roles
+#   - Companies in music/creator economy space
+#   - Well-funded startups (Series A+) with active hiring
+#   - Enterprise companies with known AI divisions
+#   - No companies on the candidate's excluded_companies list (filtered at runtime)
+
+---
+
+greenhouse:
+  # AI/ML focused companies
+  - anthropic
+  - openai
+  - perplexity-ai
+  - cohere
+  - character-ai
+  - stability-ai
+  - runway
+  - midjourney
+  - databricks
+  - anyscale
+  # Music/Creator economy
+  - spotify
+  - soundcloud
+  - splice
+  - bandlab
+  - audiomack
+  - distrokid
+  - amuse
+  - landr
+  - endel
+  # Fintech
+  - stripe
+  - square
+  - plaid
+  - mercury
+  - ramp
+  - brex
+  - moderntreasury
+  # High-growth startups
+  - notion
+  - figma
+  - linear
+  - vercel
+  - retool
+  - supabase
+  - neon
+  - railway
+  - render
+  - fly
+
+lever:
+  # AI/ML companies
+  - scale-ai
+  - labelbox
+  - weights-biases
+  - modal
+  - replicate
+  - huggingface
+  # Music/Creator tools
+  - splice
+  - landr
+  - output
+  - native-instruments
+  # Enterprise AI
+  - datadog
+  - newrelic
+  - elastic
+  - confluent
+  # Startups
+  - linear
+  - arc
+  - raycast
+  - warp
+  - codeium
+
+ashby:
+  # AI-first companies
+  - anthropic
+  - inflection
+  - character
+  - replit
+  - cursor
+  # Infra/Platform
+  - vercel
+  - railway
+  - neon
+  - planetscale
+  - convex
+  # Creator economy
+  - beehiiv
+  - maven
+  - loom
+  - descript
+
+workday:
+  # Enterprise companies with AI divisions
+  - tenant: apple
+    board: external
+  - tenant: google
+    board: jobs
+  - tenant: meta
+    board: careers
+  - tenant: amazon
+    board: jobs
+  - tenant: netflix
+    board: jobs
+  - tenant: salesforce
+    board: careers
+  - tenant: adobe
+    board: external
+  - tenant: nvidia
+    board: careers
+  - tenant: intel
+    board: jobs
+  - tenant: microsoft
+    board: careers

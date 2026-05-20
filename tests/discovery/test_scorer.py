@@ -274,3 +274,224 @@ class TestArchetypeGenerator:
         )
         assert len(manifest.target_titles) > 0
         assert len(manifest.keywords) > 0
+
+    def test_exclusions_passed_through(self, profile):
+        """Excluded companies and industries should be in the manifest."""
+        from backend.agents.discovery.archetype_generator import ArchetypeGenerator
+
+        gen = ArchetypeGenerator()
+        manifest = gen.expand(
+            profile,
+            {
+                "titles": [],
+                "companies": ["BadCo"],
+                "industries": ["oil-and-gas"],
+            },
+        )
+        assert "BadCo" in manifest.excluded_companies
+        assert "oil-and-gas" in manifest.excluded_industries
+
+    def test_keywords_include_skills(self, profile):
+        """Keywords should include technical skills from the profile."""
+        from backend.agents.discovery.archetype_generator import ArchetypeGenerator
+
+        gen = ArchetypeGenerator()
+        manifest = gen.expand(
+            profile,
+            {"titles": [], "companies": [], "industries": []},
+        )
+        # At least some skills should be in keywords
+        skill_overlap = set(profile.technical_skills[:10]) & set(manifest.keywords)
+        assert len(skill_overlap) > 0
+
+
+# ─── CrawlerAgent tests ───────────────────────────────────────────────────────
+
+
+class TestCrawlerAgent:
+    """Tests for the CrawlerAgent Phase 1A stub implementation."""
+
+    @pytest.fixture
+    def manifest(self):
+        from backend.agents.discovery.schemas import SearchManifestSchema
+
+        return SearchManifestSchema(
+            target_titles=["Head of AI", "VP Engineering", "CTO"],
+            keywords=["Python", "FastAPI", "AI", "music"],
+            excluded_companies=[],
+            excluded_industries=[],
+            location_filters=[],
+            remote_preference="remote",
+        )
+
+    @pytest.mark.asyncio
+    async def test_crawler_returns_jobs(self, manifest):
+        """CrawlerAgent.run() should return a non-empty list of jobs."""
+        from backend.agents.discovery.crawler_agent import CrawlerAgent
+
+        crawler = CrawlerAgent(candidate_id=uuid4())
+        jobs = await crawler.run(manifest)
+
+        assert len(jobs) > 0
+        assert all(j.title for j in jobs)
+        assert all(j.company for j in jobs)
+        assert all(j.url for j in jobs)
+
+    @pytest.mark.asyncio
+    async def test_crawler_respects_exclusions(self):
+        """CrawlerAgent should exclude companies on the exclusion list."""
+        from backend.agents.discovery.crawler_agent import CrawlerAgent
+        from backend.agents.discovery.schemas import SearchManifestSchema
+
+        manifest = SearchManifestSchema(
+            target_titles=["Head of AI", "VP Engineering"],
+            keywords=["Python", "AI"],
+            excluded_companies=["MusicTech AI"],  # Exclude a fixture company
+            excluded_industries=[],
+            location_filters=[],
+            remote_preference="flexible",
+        )
+
+        crawler = CrawlerAgent(candidate_id=uuid4())
+        jobs = await crawler.run(manifest)
+
+        # None of the returned jobs should be from MusicTech AI
+        for job in jobs:
+            assert "musictech ai" not in job.company.lower()
+
+    @pytest.mark.asyncio
+    async def test_crawler_filters_by_keywords(self):
+        """CrawlerAgent should only return jobs matching keywords or titles."""
+        from backend.agents.discovery.crawler_agent import CrawlerAgent
+        from backend.agents.discovery.schemas import SearchManifestSchema
+
+        # Use keywords that won't match any fixture jobs
+        manifest = SearchManifestSchema(
+            target_titles=["Underwater Basket Weaver"],
+            keywords=["ancient-greek", "basket-weaving"],
+            excluded_companies=[],
+            excluded_industries=[],
+            location_filters=[],
+            remote_preference="flexible",
+        )
+
+        crawler = CrawlerAgent(candidate_id=uuid4())
+        jobs = await crawler.run(manifest)
+
+        # Should return empty list when nothing matches
+        assert len(jobs) == 0
+
+    def test_url_hash_deterministic(self):
+        """url_hash should return the same hash for the same URL."""
+        from backend.agents.discovery.crawler_agent import CrawlerAgent
+
+        url = "https://example.com/jobs/123"
+        hash1 = CrawlerAgent.url_hash(url)
+        hash2 = CrawlerAgent.url_hash(url)
+        assert hash1 == hash2
+
+    def test_url_hash_case_insensitive(self):
+        """url_hash should be case-insensitive."""
+        from backend.agents.discovery.crawler_agent import CrawlerAgent
+
+        hash1 = CrawlerAgent.url_hash("https://Example.COM/Jobs/123")
+        hash2 = CrawlerAgent.url_hash("https://example.com/jobs/123")
+        assert hash1 == hash2
+
+
+# ─── Schema validation tests ─────────────────────────────────────────────────
+
+
+class TestSchemas:
+    def test_identity_profile_defaults(self):
+        """IdentityProfileSchema should have sensible defaults."""
+        profile = IdentityProfileSchema()
+        assert profile.leadership_level == "IC"
+        assert profile.archetypes == []
+        assert profile.technical_skills == {} or profile.technical_skills == []
+        assert profile.signals == {}
+
+    def test_discovered_job_minimal(self):
+        """DiscoveredJobSchema should work with minimal required fields."""
+        job = DiscoveredJobSchema(
+            source="greenhouse",
+            source_id="test-123",
+            title="Test Job",
+            company="Test Co",
+            url="https://example.com/job",
+        )
+        assert job.title == "Test Job"
+        assert job.remote is False  # default
+
+    def test_scored_job_schema(self, profile):
+        """ScoredJobSchema should validate correctly."""
+        from backend.agents.discovery.schemas import ScoredJobSchema
+
+        scored = ScoredJobSchema(
+            discovered_job_id=uuid4(),
+            candidate_id=uuid4(),
+            score_breakdown=ScoreBreakdown(
+                technical_match=80,
+                level_match=90,
+                culture_match=75,
+                industry_match=70,
+                growth_potential=85,
+                compensation_match=80,
+            ),
+            composite_score=80,
+            is_hot=True,
+            reasoning="Strong technical match with leadership alignment.",
+            title="Head of AI",
+            company="Test Co",
+            url="https://example.com/job",
+        )
+        assert scored.is_hot is True
+        assert scored.composite_score == 80
+
+    def test_daily_digest_schema(self):
+        """DailyDigestSchema should validate correctly."""
+        from backend.agents.discovery.schemas import DailyDigestSchema
+
+        digest = DailyDigestSchema(
+            candidate_id=uuid4(),
+            run_date="2026-05-20",
+            total_jobs_discovered=100,
+            total_jobs_scored=25,
+            top_picks=[],
+            hot_picks=[],
+            new_companies=["NewCo", "AnotherCo"],
+        )
+        assert digest.total_jobs_discovered == 100
+        assert len(digest.new_companies) == 2
+
+
+# ─── Search manifest tests ───────────────────────────────────────────────────
+
+
+class TestSearchManifest:
+    def test_manifest_defaults(self):
+        """SearchManifestSchema should have sensible defaults."""
+        from backend.agents.discovery.schemas import SearchManifestSchema
+
+        manifest = SearchManifestSchema()
+        assert manifest.target_titles == []
+        assert manifest.keywords == []
+        assert manifest.remote_preference == "flexible"
+        assert manifest.min_compensation is None
+
+    def test_manifest_with_data(self):
+        """SearchManifestSchema should accept all fields."""
+        from backend.agents.discovery.schemas import SearchManifestSchema
+
+        manifest = SearchManifestSchema(
+            target_titles=["CTO", "VP Engineering"],
+            keywords=["Python", "AI"],
+            excluded_titles=["Junior"],
+            excluded_companies=["BadCo"],
+            excluded_industries=["oil"],
+            location_filters=["Remote", "Miami"],
+            remote_preference="remote_only",
+            min_compensation=250000,
+        )
+        assert len(manifest.target_titles) == 2
+        assert manifest.min_compensation == 250000
