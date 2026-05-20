@@ -15,7 +15,7 @@ function Steps({ current }) {
             background: i < current ? 'var(--gold)' : 'transparent',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontFamily: 'var(--mono)', fontSize: 10,
-            color: i < current ? '#080808' : i === current ? 'var(--gold)' : 'var(--muted)',
+            color: i < current ? 'var(--bg-primary)' : i === current ? 'var(--gold)' : 'var(--text-secondary)',
             transition: 'all 0.3s ease',
           }}>
             {i < current ? '✓' : i + 1}

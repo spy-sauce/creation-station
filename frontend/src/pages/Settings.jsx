@@ -58,7 +58,7 @@ export default function Settings() {
                   <div style={{
                     width: 16, height: 16, borderRadius: '50%', position: 'absolute', top: 2,
                     left: t.on ? 18 : 2,
-                    background: t.on ? '#080808' : 'var(--muted)',
+                    background: t.on ? 'var(--bg-primary)' : 'var(--text-muted)',
                     transition: 'left 0.2s ease',
                   }} />
                 </div>
