@@ -11,26 +11,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.config import settings
 from backend.observability import configure_logging, get_logger, HealthResponse
 from backend.observability.health import build_health_response
-from backend.database import engine, Base, AsyncSessionLocal
+from backend.database import engine, Base, AsyncSessionLocal, set_redis_client, get_redis
 from backend.api.router import router
+from backend.api import events as events_router
 from backend.seed import seed_admin_user
 
 logger = get_logger(__name__)
 
-# Global Redis client — initialized at startup
+# Global Redis client reference for lifespan management
 _redis_client: Optional[aioredis.Redis] = None
-
-
-async def get_redis() -> aioredis.Redis:
-    """FastAPI dependency that returns the global Redis client."""
-    global _redis_client
-    if _redis_client is None:
-        _redis_client = aioredis.from_url(
-            settings.redis_url,
-            encoding="utf-8",
-            decode_responses=True,
-        )
-    return _redis_client
 
 
 @asynccontextmanager
@@ -46,12 +35,13 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    # Initialize Redis connection
+    # Initialize Redis connection and set in shared module
     _redis_client = aioredis.from_url(
         settings.redis_url,
         encoding="utf-8",
         decode_responses=True,
     )
+    set_redis_client(_redis_client)
 
     # Auto-seed admin user (Space Cowboy #9) if no users exist
     await seed_admin_user()
@@ -96,6 +86,10 @@ app.add_middleware(
 )
 
 app.include_router(router)
+
+# SSE event stream at /events/stream (no prefix)
+# Contract: NUTRIENTS.md § API_CONTRACTS → GET /events/stream
+app.include_router(events_router.router, prefix="/events", tags=["events"])
 
 
 @app.get("/health", response_model=HealthResponse)
