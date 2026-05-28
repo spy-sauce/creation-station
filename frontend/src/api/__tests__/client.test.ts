@@ -57,7 +57,7 @@ describe('apiClient', () => {
     originalLocation = window.location
     // @ts-expect-error - Mocking window.location
     delete window.location
-    window.location = { ...originalLocation, href: '' } as Location
+    ;(window as { location: Location }).location = { ...originalLocation, href: '' } as Location
 
     // Clear any stored tokens
     clearToken()
@@ -71,7 +71,7 @@ describe('apiClient', () => {
     globalThis.fetch = originalFetch
 
     // Restore original location
-    window.location = originalLocation
+    ;(window as { location: Location }).location = originalLocation
 
     // Clear timers
     vi.useRealTimers()
@@ -398,7 +398,7 @@ describe('apiClient', () => {
 
       globalThis.fetch = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
         capturedContentType = (init?.headers as Headers)?.get('Content-Type')
-        capturedBody = init?.body
+        capturedBody = init?.body ?? undefined
         return mockResponse({ success: true })
       })
 
@@ -456,7 +456,7 @@ describe('apiClient', () => {
             throw new Error('Not JSON')
           },
           headers: new Headers(),
-        } as Response
+        } as unknown as Response
       })
 
       try {
@@ -479,7 +479,7 @@ describe('apiClient', () => {
             throw new Error('No content')
           },
           headers: new Headers(),
-        } as Response
+        } as unknown as Response
       })
 
       const result = await apiClient.delete('/resource')
