@@ -1,4 +1,4 @@
-# CLAUDE.md — Talent Agent (Iter-5)
+# CLAUDE.md — Talent Agent (Iter-6)
 ## VibeSpace LLC · Built by Space Cowboy #9
 
 ---
@@ -43,14 +43,19 @@ Miami, FL · github.com/tyzeeington · spy@seanyoung.biz
 
 **Target market:** Recruiting agencies managing 50–500 candidates simultaneously.
 
-**Iter-5 Focus:** Synthetic Monitoring. Make the system observe itself via a synthetic monitoring harness that exercises the Discovery → Score → Apply pipeline daily with known-input synthetic candidates, fingerprints the output, and alerts on drift. Three new biomes:
+**Iter-6 Focus:** Fix UUID Detection. Iter-5 shipped synthetic monitoring (13/13 FRUIT_READY, 100% harvest) but contained a factual error: synthetic candidate detection via SQL `LIKE '00000000-%'` doesn't work because UUIDv5 SHA-1 hashes produce essentially random first 8 hex chars. Iter-6 fixes the contract, runs the verification iter-5 should have run, and captures the first real baseline.
+
+**The Bug:** UUIDv5 hashes the namespace + name with SHA-1; the first 8 hex chars of the digest are essentially random:
+- `synthetic-jr-engineer`  → `3c7eab85-c380-584b-a128-43bba592f163`
+- `synthetic-senior-ml`    → `24fd155e-d431-5dd1-9a59-ee9b70c535a6`
+- `synthetic-mid-product`  → `fb752ea7-1682-5cb8-84b9-b6402e8675a6`
+
+**The Fix:** Detect by membership in a known constant list (`backend/synthetics/known_ids.py`), not by prefix. All consumers import from this single source of truth.
+
+**Iter-5 Focus (completed):** Synthetic Monitoring infrastructure — synthetic candidates, JD fixtures, scoring drift detection, crawler health monitoring. Three biomes shipped:
 1. `synthetics-fixtures` — synthetic candidates, JD fixtures, baseline scaffolding
 2. `synthetics-scoring` — deterministic scoring drift detection with cache verification
 3. `synthetics-crawler` — upstream health monitoring with state machine alerts
-
-**Two failure modes the synthetic harness surfaces:**
-1. **Scoring drift** — same input, different score. Catches Claude version bumps, prompt edits, archetype-generator regressions.
-2. **Crawler regression** — upstream API schema change, rate-limit policy shift, or selector breakage.
 
 ---
 
@@ -206,20 +211,23 @@ Every status transition:
 
 ## CURRENT PHASE
 
-**Iteration 5 — Synthetic Monitoring**
+**Iteration 6 — Fix UUID Detection + Verify Iter-5**
 
-This iteration makes the system observe itself. Iter-4 shipped the end-to-end loop (Celery beat, SSE stream, frontend apiClient, full test sweep — 20/20 FRUIT_READY). Now we add synthetic monitoring to detect drift before users do.
+Iter-5 shipped synthetic monitoring infrastructure (13/13 FRUIT_READY, 100% harvest) but contained a factual error: synthetic candidate detection via SQL `LIKE '00000000-%'` returns zero rows because UUIDv5 SHA-1 produces random first 8 hex chars.
 
-**Goal:** Run `python -m backend.synthetics run --suite=scoring` and produce `synthetics/runs/<ts>/scoring-report.json` containing fingerprints for each synthetic candidate. Run twice: identical fingerprints + >90% cache hit rate. Mutate a score weight: non-empty `DriftReport`.
+**Goal:** After cultivation, `python -m backend.synthetics run --suite=scoring` against a freshly-seeded docker-compose backend produces a scoring report on the FIRST run, and the SECOND run produces an identical fingerprint with `cache_read_input_tokens > 0` on every Claude call.
 
-**New Biomes:**
-- `synthetics-fixtures-agent` — Synthetic candidates, JD fixtures, seeder
-- `synthetics-scoring-agent` — Scoring drift detection, fingerprinting, diff engine
-- `synthetics-crawler-agent` — Upstream health monitoring, state machine alerts
+**Scope:** Single biome — `synthetics-fix-agent` with 6 sub-agents:
+1. `synthetics-fix-agent.known-ids` — Create `backend/synthetics/known_ids.py`
+2. `synthetics-fix-agent.scoring-runner-detection` — Fix SQL in `scoring_runner.py`
+3. `synthetics-fix-agent.seeder-self-verify` — Add import + self-verify to seeder
+4. `synthetics-fix-agent.candidates-yaml-cleanup` — Fix header comment
+5. `synthetics-fix-agent.contract-amendment` — Amend NUTRIENTS.md §I.1 + add §I.1.b
+6. `synthetics-fix-agent.tests` — Add test files
 
-**Budget:** Cultivation ~$6-9. Ongoing operation ~$13/month (aggressive cache), hard ceiling $20/month.
+**Budget:** Cultivation ~$3-5. Ongoing operation unchanged from iter-5 ($20/month cap).
 
-**Iter-4 Biomes (14 total) are FROZEN — do not touch.**
+**Iter-5 Biomes (17 total) are FROZEN — do not touch.**
 
 ---
 

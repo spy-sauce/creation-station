@@ -8,16 +8,17 @@
 
 | Depth | Count | Description |
 |---|---|---|
-| Biomes (1) | 17 | 14 iter-4 (frozen) + 3 new (synthetics-fixtures, synthetics-scoring, synthetics-crawler) |
-| Specialists (2) | ~45 | After iter-5 decomposition |
-| Leaf specialists (3) | ~75 | Including synthetics leaves |
-| **Total concurrent sessions at peak** | **4** | Current (rate-limit discipline) |
+| Biomes (1) | 18 | 14 iter-4 + 3 iter-5 (synthetics) + 1 iter-6 (synthetics-fix) |
+| Specialists (2) | ~51 | After iter-6 decomposition |
+| Leaf specialists (3) | ~81 | Including iter-6 leaves |
+| **Total concurrent sessions at peak** | **3** | Current (iter-6 rate-limit discipline) |
 | **Target peak (full depth-3)** | **8-12** | After cache warmup + token bucket optimization |
 
-**Iter-5 deltas:**
-- +3 new biomes: synthetics-fixtures-agent, synthetics-scoring-agent, synthetics-crawler-agent
-- +13 new specialists across synthetics biomes
-- Iter-4's 14 biomes are frozen — no modifications allowed
+**Iter-6 deltas:**
+- +1 new biome: synthetics-fix-agent (surgical patch)
+- +6 new specialists for UUID detection fix
+- Iter-5's 17 biomes are frozen — no modifications allowed
+- Concurrency tuned down to `-c 3` due to contract-amendment leaf dependency
 
 ---
 
@@ -34,7 +35,7 @@
 ## Execution Tree
 
 ```
-organism: talent-agent (iter-5)
+organism: talent-agent (iter-6)
 │
 ├── data-agent (4 specialists) — FROZEN
 │   ├── data-agent.migrations
@@ -253,15 +254,30 @@ organism: talent-agent (iter-5)
 │   └── synthetics-scoring-agent.cache-verification
 │       └── synthetics-scoring-agent.cache-verification.hit-rate-check
 │
-└── synthetics-crawler-agent (4 specialists) ← NEW BIOME
-    ├── synthetics-crawler-agent.runner
-    │   └── synthetics-crawler-agent.runner.health-check
-    ├── synthetics-crawler-agent.schemas
-    │   └── synthetics-crawler-agent.schemas.expected-shapes
-    ├── synthetics-crawler-agent.state-machine
-    │   └── synthetics-crawler-agent.state-machine.consecutive-failures
-    └── synthetics-crawler-agent.beat-extension
-        └── synthetics-crawler-agent.beat-extension.hourly-schedule
+├── synthetics-crawler-agent (4 specialists) — FROZEN
+│   ├── synthetics-crawler-agent.runner
+│   │   └── synthetics-crawler-agent.runner.health-check
+│   ├── synthetics-crawler-agent.schemas
+│   │   └── synthetics-crawler-agent.schemas.expected-shapes
+│   ├── synthetics-crawler-agent.state-machine
+│   │   └── synthetics-crawler-agent.state-machine.consecutive-failures
+│   └── synthetics-crawler-agent.beat-extension
+│       └── synthetics-crawler-agent.beat-extension.hourly-schedule
+│
+└── synthetics-fix-agent (6 specialists) ← ITER-6 BIOME
+    ├── synthetics-fix-agent.known-ids
+    │   └── synthetics-fix-agent.known-ids.canonical-uuids
+    ├── synthetics-fix-agent.scoring-runner-detection
+    │   └── synthetics-fix-agent.scoring-runner-detection.sql-any
+    ├── synthetics-fix-agent.seeder-self-verify
+    │   └── synthetics-fix-agent.seeder-self-verify.uuid-check
+    ├── synthetics-fix-agent.candidates-yaml-cleanup
+    │   └── synthetics-fix-agent.candidates-yaml-cleanup.header-comment
+    ├── synthetics-fix-agent.contract-amendment
+    │   └── synthetics-fix-agent.contract-amendment.nutrients-i1b
+    └── synthetics-fix-agent.tests
+        ├── synthetics-fix-agent.tests.known-ids
+        └── synthetics-fix-agent.tests.seeder-idempotent
 ```
 
 ---
@@ -317,6 +333,10 @@ graph TD
         SYNTHCRAWLER[synthetics-crawler-agent]
     end
 
+    subgraph "Tier 8 (Synthetics Fix - Iter-6)"
+        SYNTHFIX[synthetics-fix-agent]
+    end
+
     DATA --> AUTH
     DATA --> OBS
     DATA --> DISCOVER
@@ -361,26 +381,35 @@ graph TD
     %% Iter-5 synthetics dependencies
     SYNTHFIXTURES --> SYNTHSCORING
     SYNTHFIXTURES --> SYNTHCRAWLER
+
+    %% Iter-6 fix (additive seam, no upstream deps)
+    %% SYNTHFIX has no blocked_by — runs independently
 ```
 
 ---
 
 ## What's Next
 
-1. **Deploy synthetics to production** (iter-6 work)
+1. **Iter-6 verification gates** (current work)
+   - Run 5 verification gates from brief
+   - Capture artifacts in `synthetics/runs/iter-6-verification/`
+   - Accept first baseline via manual copy (CLI lands in iter-7)
+
+2. **Mycelium synthetics CLI** (iter-7)
+   - `mycelium synthetics baseline accept <run_id>`
+   - Promote drift contract template to framework
+   - Alert state machine abstraction
+
+3. **Deploy synthetics to production** (iter-8+)
    - Run `deploy/setup-aws.sh` to stand up ECS
    - Flip `synthetics.target: remote` in mycelium.yaml
-   - Exercise synthetics against live backend
+   - Workday monitoring via different architecture (webhook-driven, sampled, or replay-based)
 
-2. **Synthetic dashboard UI** (+3 specialists)
+4. **Synthetic dashboard UI** (+3 specialists)
    - `/synthetics` route showing recent runs, drift reports, crawler health
    - Real-time SSE subscription to `agent.status.synthetics.*` channels
 
-3. **Baseline approval workflow UI** (+2 specialists)
-   - Review drift reports in browser
-   - One-click baseline acceptance
-
-4. **Expand synthetic candidate coverage** (+1 specialist)
+5. **Expand synthetic candidate coverage** (+1 specialist)
    - Add edge-case candidates (career changers, gap years, non-traditional backgrounds)
    - Stress-test archetype generator
 

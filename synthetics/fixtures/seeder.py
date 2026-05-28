@@ -8,9 +8,9 @@ Loads synthetic candidate definitions and upserts them into Postgres.
 Safe to call on every backend boot — no duplicate rows, no constraint violations.
 
 Synthetic candidates use UUIDv5 under the DNS namespace for deterministic IDs.
-Detection: WHERE id::text LIKE '00000000-%' returns exactly 3 rows.
+Detection: backend.synthetics.known_ids.is_synthetic(candidate_id).
 
-Contract: NUTRIENTS.md § I.1 Synthetic Candidate Isolation
+Contract: NUTRIENTS.md § I.1 Synthetic Candidate Isolation (as amended by iter-6)
 Contract: HYPHA-SYNTHETICS-FIXTURES.md Acceptance Criteria
 """
 
@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import AsyncSessionLocal
 from backend.models.discovery import Candidate, RemotePreference
+from backend.synthetics.known_ids import SYNTHETIC_CANDIDATE_IDS, SYNTHETIC_CANDIDATE_ID_SET
 
 logger = structlog.get_logger(__name__)
 
@@ -387,6 +388,34 @@ async def seed() -> None:
                 skipped += 1
 
         await session.commit()
+
+        # Self-verify: ensure seeded UUIDs match known_ids constants
+        # Contract: NUTRIENTS.md § I.1 (as amended by iter-6)
+        verify_result = await session.execute(
+            select(Candidate.id).where(
+                Candidate.id.in_([str(uid) for uid in SYNTHETIC_CANDIDATE_ID_SET])
+            )
+        )
+        seeded_ids = {row[0] for row in verify_result.fetchall()}
+
+        if seeded_ids != SYNTHETIC_CANDIDATE_ID_SET:
+            missing = SYNTHETIC_CANDIDATE_ID_SET - seeded_ids
+            unexpected = seeded_ids - SYNTHETIC_CANDIDATE_ID_SET
+            logger.error(
+                "seeder.verify_failed",
+                missing=str(missing),
+                unexpected=str(unexpected),
+                message="Synthetic seeding produced unexpected UUIDs",
+            )
+            raise RuntimeError(
+                f"synthetic seeding produced unexpected UUIDs: "
+                f"missing={missing}, unexpected={unexpected}"
+            )
+
+        logger.info(
+            "seeder.verify_passed",
+            verified_count=len(seeded_ids),
+        )
 
     logger.info(
         "synthetic.seed.complete",

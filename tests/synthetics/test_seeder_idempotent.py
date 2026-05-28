@@ -35,20 +35,39 @@ class TestSeederIdempotency:
         existing_ids: set[uuid.UUID] = set()
 
         async def mock_execute(query):
-            """Mock execute that simulates SELECT for existing check."""
+            """Mock execute. Per-candidate SELECT uses scalar_one_or_none;
+            the post-loop verify SELECT iterates with fetchall().
+
+            Extract the target id from the query's WHERE clause so each
+            per-candidate probe answers independently — necessary because
+            seed() probes candidate N+1 after add() of candidate N."""
             result = MagicMock()
-            # After first seed, all IDs exist
-            result.scalar_one_or_none.return_value = (
-                MagicMock() if any(uid in existing_ids for uid in SYNTHETIC_CANDIDATE_ID_SET) else None
-            )
+            target_id = None
+            try:
+                # SQLAlchemy WHERE clause: BinaryExpression with .right.value
+                clause = getattr(query, "whereclause", None) or getattr(query, "_where_criteria", [None])[0]
+                if clause is not None:
+                    target_id = clause.right.value
+                    if isinstance(target_id, str):
+                        target_id = uuid.UUID(target_id)
+            except Exception:
+                target_id = None
+            if target_id is not None and target_id in existing_ids:
+                result.scalar_one_or_none.return_value = MagicMock()
+            else:
+                result.scalar_one_or_none.return_value = None
+            # Bulk verify: return tuples of (id,) for whatever has been seeded
+            result.fetchall.return_value = [(uid,) for uid in existing_ids]
             return result
 
         mock_session = AsyncMock()
         mock_session.execute = mock_execute
 
         def mock_add(candidate):
+            # Coerce id to UUID (the seeder may pass strings)
+            cid = candidate.id if isinstance(candidate.id, uuid.UUID) else uuid.UUID(str(candidate.id))
             inserted_candidates.append(candidate)
-            existing_ids.add(candidate.id)
+            existing_ids.add(cid)
 
         mock_session.add = mock_add
         mock_session.commit = AsyncMock()
@@ -79,15 +98,22 @@ class TestSeederIdempotency:
     async def test_seed_produces_exactly_three_candidates(self) -> None:
         """Assert seed produces exactly 3 synthetic candidates."""
         inserted_candidates: list[MagicMock] = []
+        existing_ids: set[uuid.UUID] = set()
 
         async def mock_execute(query):
             result = MagicMock()
             result.scalar_one_or_none.return_value = None
+            result.fetchall.return_value = [(uid,) for uid in existing_ids]
             return result
+
+        def _add(c):
+            cid = c.id if isinstance(c.id, uuid.UUID) else uuid.UUID(str(c.id))
+            inserted_candidates.append(c)
+            existing_ids.add(cid)
 
         mock_session = AsyncMock()
         mock_session.execute = mock_execute
-        mock_session.add = lambda c: inserted_candidates.append(c)
+        mock_session.add = _add
         mock_session.commit = AsyncMock()
 
         with patch("synthetics.fixtures.seeder.AsyncSessionLocal") as mock_session_local:

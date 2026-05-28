@@ -56,7 +56,7 @@ Own the synthetic test data that exercises the Discovery → Score pipeline dail
 
 - [ ] `python -c "from synthetics.fixtures.seeder import seed; import asyncio; asyncio.run(seed())"` completes without error
 - [ ] Running the seed command twice is idempotent — no duplicate rows, no constraint violations
-- [ ] `SELECT * FROM candidates WHERE id::text LIKE '00000000-%'` returns exactly 3 rows after seeding
+- [ ] `SELECT count(*) FROM candidates WHERE id = ANY(SYNTHETIC_CANDIDATE_IDS.values())` returns 3 after seeding (see backend/synthetics/known_ids.py — added iter-6 to replace broken LIKE prefix detection)
 - [ ] Each synthetic candidate has a unique UUIDv5 derived from `uuid.uuid5(uuid.NAMESPACE_DNS, "synthetic-" + slug)`
 - [ ] All 12 JD files have valid YAML frontmatter with `expected_hot` (boolean) and `expected_score_band` (one of `low`, `mid`, `high`)
 - [ ] Each JD file declares `target_candidate` matching one of the 3 synthetic slugs

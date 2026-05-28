@@ -65,7 +65,7 @@ Own the deterministic scoring drift detection harness. Exercise the real `Releva
 ```
 python -m backend.synthetics run --suite=scoring
 
-1. Load synthetic candidates from database (WHERE id::text LIKE '00000000-%')
+1. Load synthetic candidates from database (WHERE id = ANY(SYNTHETIC_CANDIDATE_IDS.values()) per backend/synthetics/known_ids.py — iter-6 corrected the original broken LIKE prefix)
 2. Load JD fixtures from synthetics/fixtures/jobs/
 3. For each candidate × JD pair:
    a. Call RelevanceScorer.score_batch() with cache_control

@@ -131,6 +131,30 @@
     "synthetics-crawler-agent.runner": {
       "fruitedAt": "2026-05-28T04:13:09.483Z",
       "branch": "feat/synthetics-crawler-agent.runner"
+    },
+    "synthetics-fix-agent.scoring-runner-detection": {
+      "fruitedAt": "2026-05-28T04:34:36.646Z",
+      "branch": "feat/synthetics-fix-agent.scoring-runner-detection"
+    },
+    "synthetics-fix-agent.seeder-self-verify": {
+      "fruitedAt": "2026-05-28T04:34:55.524Z",
+      "branch": "feat/synthetics-fix-agent.seeder-self-verify"
+    },
+    "synthetics-fix-agent.known-ids": {
+      "fruitedAt": "2026-05-28T04:35:01.797Z",
+      "branch": "feat/synthetics-fix-agent.known-ids"
+    },
+    "synthetics-fix-agent.candidates-yaml-cleanup": {
+      "fruitedAt": "2026-05-28T04:35:19.334Z",
+      "branch": "feat/synthetics-fix-agent.candidates-yaml-cleanup"
+    },
+    "synthetics-fix-agent.contract-amendment": {
+      "fruitedAt": "2026-05-28T04:36:40.743Z",
+      "branch": "feat/synthetics-fix-agent.contract-amendment"
+    },
+    "synthetics-fix-agent.tests": {
+      "fruitedAt": "2026-05-28T04:38:49.305Z",
+      "branch": "feat/synthetics-fix-agent.tests"
     }
   }
 }

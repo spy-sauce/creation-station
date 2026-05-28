@@ -237,10 +237,9 @@ async def load_synthetic_candidates(
     """
     Load synthetic candidates from the database.
 
-    Synthetic candidates are identified by UUIDv5 markers matching
-    the pattern: id::text LIKE '00000000-%'
+    Synthetic candidates are identified by membership in SYNTHETIC_CANDIDATE_IDS.
 
-    Contract: NUTRIENTS.md §I.1
+    Contract: NUTRIENTS.md §I.1 (as amended by iter-6)
 
     Args:
         session: Async SQLAlchemy session
@@ -248,7 +247,9 @@ async def load_synthetic_candidates(
     Returns:
         List of CandidateSchema for synthetic candidates
     """
-    # Query candidates with synthetic UUID pattern
+    from backend.synthetics.known_ids import SYNTHETIC_CANDIDATE_IDS
+
+    # Query candidates with known synthetic UUIDs
     result = await session.execute(
         text("""
             SELECT
@@ -257,9 +258,10 @@ async def load_synthetic_candidates(
                 min_compensation, excluded_companies, excluded_industries,
                 created_at, updated_at
             FROM candidates
-            WHERE id::text LIKE '00000000-%'
+            WHERE id = ANY(:synthetic_ids)
             ORDER BY name
-        """)
+        """),
+        {"synthetic_ids": [str(uid) for uid in SYNTHETIC_CANDIDATE_IDS.values()]}
     )
 
     candidates: list[CandidateSchema] = []

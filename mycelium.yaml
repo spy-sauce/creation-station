@@ -63,76 +63,80 @@ organism:
       - synthetics-crawler-agent
     synthetics-scoring-agent: []
     synthetics-crawler-agent: []
+    synthetics-fix-agent: []
     "*":
       - data-agent
       - design-agent
 contracts:
   - path: NUTRIENTS.md
     frozen: true
-    frozenAt: 2026-05-28T03:38:05.575Z
+    frozenAt: 2026-05-28T04:33:32.919Z
   - path: hyphae/HYPHA-SCHEMA-CORE.md
     frozen: true
-    frozenAt: 2026-05-28T03:38:05.575Z
+    frozenAt: 2026-05-28T04:33:32.919Z
   - path: hyphae/HYPHA-DATA.md
     frozen: true
-    frozenAt: 2026-05-28T03:38:05.575Z
+    frozenAt: 2026-05-28T04:33:32.919Z
   - path: hyphae/HYPHA-DESIGN-CORE.md
     frozen: true
-    frozenAt: 2026-05-28T03:38:05.575Z
+    frozenAt: 2026-05-28T04:33:32.919Z
   - path: hyphae/HYPHA-AUTH.md
     frozen: true
-    frozenAt: 2026-05-28T03:38:05.575Z
+    frozenAt: 2026-05-28T04:33:32.919Z
   - path: hyphae/HYPHA-OBSERVABILITY.md
     frozen: true
-    frozenAt: 2026-05-28T03:38:05.575Z
+    frozenAt: 2026-05-28T04:33:32.919Z
   - path: hyphae/HYPHA-DISCOVERY-ENGINE.md
     frozen: true
-    frozenAt: 2026-05-28T03:38:05.575Z
+    frozenAt: 2026-05-28T04:33:32.919Z
   - path: hyphae/HYPHA-APPLICATION-ENGINE.md
     frozen: true
-    frozenAt: 2026-05-28T03:38:05.575Z
+    frozenAt: 2026-05-28T04:33:32.919Z
   - path: hyphae/HYPHA-AGENT-MANAGER.md
     frozen: true
-    frozenAt: 2026-05-28T03:38:05.575Z
+    frozenAt: 2026-05-28T04:33:32.919Z
   - path: hyphae/HYPHA-API.md
     frozen: true
-    frozenAt: 2026-05-28T03:38:05.575Z
+    frozenAt: 2026-05-28T04:33:32.919Z
   - path: hyphae/HYPHA-API-SURFACE.md
     frozen: true
-    frozenAt: 2026-05-28T03:38:05.575Z
+    frozenAt: 2026-05-28T04:33:32.919Z
   - path: hyphae/HYPHA-FRONTEND.md
     frozen: true
-    frozenAt: 2026-05-28T03:38:05.575Z
+    frozenAt: 2026-05-28T04:33:32.919Z
   - path: hyphae/HYPHA-ONBOARDING.md
     frozen: true
-    frozenAt: 2026-05-28T03:38:05.575Z
+    frozenAt: 2026-05-28T04:33:32.919Z
   - path: hyphae/HYPHA-REVIEW-DASHBOARD.md
     frozen: true
-    frozenAt: 2026-05-28T03:38:05.575Z
+    frozenAt: 2026-05-28T04:33:32.919Z
   - path: hyphae/HYPHA-INFRA-DEPLOY.md
     frozen: true
-    frozenAt: 2026-05-28T03:38:05.575Z
+    frozenAt: 2026-05-28T04:33:32.919Z
   - path: hyphae/HYPHA-SCHEDULER.md
     frozen: true
-    frozenAt: 2026-05-28T03:38:05.575Z
+    frozenAt: 2026-05-28T04:33:32.919Z
   - path: hyphae/HYPHA-API-STREAMING.md
     frozen: true
-    frozenAt: 2026-05-28T03:38:05.575Z
+    frozenAt: 2026-05-28T04:33:32.919Z
   - path: hyphae/HYPHA-API-CLIENT.md
     frozen: true
-    frozenAt: 2026-05-28T03:38:05.575Z
+    frozenAt: 2026-05-28T04:33:32.919Z
   - path: hyphae/HYPHA-TESTS.md
     frozen: true
-    frozenAt: 2026-05-28T03:38:05.575Z
+    frozenAt: 2026-05-28T04:33:32.919Z
   - path: hyphae/HYPHA-SYNTHETICS-FIXTURES.md
     frozen: true
-    frozenAt: 2026-05-28T03:38:05.575Z
+    frozenAt: 2026-05-28T04:33:32.919Z
   - path: hyphae/HYPHA-SYNTHETICS-SCORING.md
     frozen: true
-    frozenAt: 2026-05-28T03:38:05.575Z
+    frozenAt: 2026-05-28T04:33:32.919Z
   - path: hyphae/HYPHA-SYNTHETICS-CRAWLER.md
     frozen: true
-    frozenAt: 2026-05-28T03:38:05.575Z
+    frozenAt: 2026-05-28T04:33:32.919Z
+  - path: hyphae/HYPHA-SYNTHETICS-FIX.md
+    frozen: true
+    frozenAt: 2026-05-28T04:33:32.919Z
 synthetics:
   budget:
     monthlyUsd: 20
@@ -719,6 +723,31 @@ agents:
       - id: synthetics-crawler-agent.beat-extension
         scope: backend/synthetics/beat_schedule.py — hourly Celery beat entry for
           crawler health, registered additively
+  - id: synthetics-fix-agent
+    scope: "Iter-6 UUID detection fix: known_ids.py, scoring_runner SQL, seeder
+      self-verify, contract amendment"
+    branch: feat/synthetics-fix-agent
+    blocked_by: []
+    blocks: []
+    capabilities:
+      - pydantic
+      - uuid5
+      - sqlalchemy
+    sub_agents:
+      - id: synthetics-fix-agent.known-ids
+        scope: backend/synthetics/known_ids.py — canonical frozen UUID constants +
+          is_synthetic() oracle
+      - id: synthetics-fix-agent.scoring-runner-detection
+        scope: backend/synthetics/scoring_runner.py — replace WHERE LIKE with WHERE ANY
+      - id: synthetics-fix-agent.seeder-self-verify
+        scope: synthetics/fixtures/seeder.py — import known_ids + self-verify block
+      - id: synthetics-fix-agent.candidates-yaml-cleanup
+        scope: synthetics/fixtures/candidates.yaml — fix header comment lines 10-11
+      - id: synthetics-fix-agent.contract-amendment
+        scope: NUTRIENTS.md §I.1 amendment + §I.1.b new subsection
+      - id: synthetics-fix-agent.tests
+        scope: tests/synthetics/test_known_ids.py +
+          tests/synthetics/test_seeder_idempotent.py
 merge_order:
   - data-agent
   - design-agent
@@ -737,6 +766,7 @@ merge_order:
   - synthetics-fixtures-agent
   - synthetics-scoring-agent
   - synthetics-crawler-agent
+  - synthetics-fix-agent
 timeline:
   parallel_phases:
     - hours: 0-1
