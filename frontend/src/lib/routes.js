@@ -14,6 +14,7 @@ export const routes = {
   candidates: '/candidates',
   pipeline: '/pipeline',
   reviewQueue: '/review-queue',
+  reviewDetail: '/review-queue/:pipelineId',
   analytics: '/analytics',
   settings: '/settings',
 }

@@ -204,6 +204,26 @@ export interface RejectResponse {
 // ─── API Functions ────────────────────────────────────────────────────────────
 
 /**
+ * Get a single application pipeline by ID.
+ *
+ * Per NUTRIENTS.md API_CONTRACTS:
+ * GET /api/v1/application/{pipeline_id}
+ *
+ * @param pipelineId - UUID of the application pipeline
+ * @returns Full application pipeline with all artifacts
+ * @throws TalentAgentApiError on 404 (not found) or other errors
+ *
+ * @example
+ * ```ts
+ * const pipeline = await getApplication('pipeline-uuid')
+ * // pipeline.parsed_jd, pipeline.company_intel, etc.
+ * ```
+ */
+export async function getApplication(pipelineId: string): Promise<ApplicationPipeline> {
+  return apiClient.get<ApplicationPipeline>(`/application/${pipelineId}`)
+}
+
+/**
  * List application pipelines for a candidate.
  *
  * Per NUTRIENTS.md API_CONTRACTS:

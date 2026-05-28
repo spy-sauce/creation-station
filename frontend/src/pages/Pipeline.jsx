@@ -1,67 +1,156 @@
+import { useState, useEffect, useCallback } from 'react'
+import { AlertCircle, Loader2 } from 'lucide-react'
 import StatusBadge from '../components/StatusBadge'
+import { useAuth } from '../context/AuthContext'
+import { listApplications } from '../api/applications'
+import { TalentAgentApiError } from '../api/client'
+import { log } from '../lib/logger'
 
-const stages = [
-  { name: 'Discovered', status: 'discovered', count: 24, items: [
-    { id: 1, candidate: 'Marcus Chen', role: 'Sr. ML Engineer', company: 'Stripe', match: 94, time: '2h ago' },
-    { id: 2, candidate: 'Aisha Patel', role: 'VP Engineering', company: 'Figma', match: 91, time: '3h ago' },
-    { id: 3, candidate: 'Lisa Zhang', role: 'Eng Manager', company: 'Linear', match: 89, time: '5h ago' },
-  ]},
-  { name: 'In Review', status: 'reviewing', count: 12, items: [
-    { id: 5, candidate: 'Sarah Kim', role: 'Head of AI', company: 'Notion', match: 92, time: '1d ago' },
-    { id: 6, candidate: 'Jordan Williams', role: 'Staff Engineer', company: 'Vercel', match: 88, time: '1d ago' },
-  ]},
-  { name: 'Approved', status: 'approved', count: 8, items: [
-    { id: 8, candidate: 'Marcus Chen', role: 'AI Lead', company: 'Anthropic', match: 96, time: '2d ago' },
-  ]},
-  { name: 'Applied', status: 'applied', count: 15, items: [
-    { id: 10, candidate: 'Aisha Patel', role: 'CTO', company: 'Resend', match: 93, time: '3d ago' },
-    { id: 11, candidate: 'Lisa Zhang', role: 'Eng Director', company: 'Clerk', match: 86, time: '4d ago' },
-  ]},
-  { name: 'Interviewing', status: 'interviewing', count: 6, items: [
-    { id: 13, candidate: 'Emily Nguyen', role: 'Staff Engineer', company: 'Planetscale', match: 91, time: '5d ago' },
-  ]},
-  { name: 'Placed', status: 'placed', count: 6, items: [
-    { id: 15, candidate: 'Raj Krishnamurthy', role: 'CTO', company: 'Stealth Startup', match: 97, time: '2w ago' },
-  ]},
+/**
+ * Pipeline stage configuration.
+ * Maps application status to display stage.
+ */
+const stageConfig = [
+  { name: 'Discovered', status: 'discovered', statusMatch: ['QUEUED'] },
+  { name: 'In Review', status: 'reviewing', statusMatch: ['AWAITING_REVIEW', 'PARSING', 'TAILORING', 'RESEARCHING', 'COMPOSING'] },
+  { name: 'Approved', status: 'approved', statusMatch: ['APPROVED'] },
+  { name: 'Applied', status: 'applied', statusMatch: ['SUBMITTED', 'SENT'] },
+  { name: 'Tracking', status: 'tracking', statusMatch: ['TRACKED'] },
+  { name: 'Rejected', status: 'rejected', statusMatch: ['REJECTED', 'FAILED', 'REQUIRES_MANUAL'] },
 ]
 
+/**
+ * Format relative time from ISO date string.
+ */
+function formatRelativeTime(isoDate) {
+  if (!isoDate) return ''
+  const date = new Date(isoDate)
+  const now = new Date()
+  const diffMs = now - date
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffHours < 1) return 'just now'
+  if (diffHours < 24) return `${diffHours}h ago`
+  if (diffDays < 7) return `${diffDays}d ago`
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`
+  return `${Math.floor(diffDays / 30)}mo ago`
+}
+
 export default function Pipeline() {
+  const { user } = useAuth()
+  const [applications, setApplications] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  const fetchApplications = useCallback(async () => {
+    if (!user?.candidate_id) {
+      setLoading(false)
+      return
+    }
+
+    try {
+      const { pipelines } = await listApplications({ candidate_id: user.candidate_id })
+      setApplications(pipelines || [])
+      setError(null)
+      log.info('pipeline.fetch_success', { count: pipelines?.length || 0 })
+    } catch (err) {
+      if (err instanceof TalentAgentApiError) {
+        log.error('pipeline.fetch_error', { status: err.status, message: err.message })
+        setError(err.message)
+      } else {
+        log.error('pipeline.fetch_error', { error: String(err) })
+        setError('Failed to load applications')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [user?.candidate_id])
+
+  useEffect(() => {
+    fetchApplications()
+  }, [fetchApplications])
+
+  // Group applications by stage
+  const stages = stageConfig.map(stage => {
+    const items = applications.filter(app => stage.statusMatch.includes(app.status))
+    return {
+      ...stage,
+      count: items.length,
+      items: items.map(app => ({
+        id: app.id,
+        role: app.parsed_jd?.seniority_level
+          ? `${app.parsed_jd.seniority_level} Engineer`
+          : 'Role',
+        company: app.company_intel?.company_name || 'Company',
+        match: app.parsed_jd ? 85 : 0, // Placeholder until we have scoring on pipelines
+        time: formatRelativeTime(app.updated_at || app.created_at),
+        status: app.status,
+      })),
+    }
+  })
+
+  if (loading) {
+    return (
+      <div className="fade-in" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300 }}>
+        <Loader2 style={{ width: 24, height: 24, color: 'var(--gold)', animation: 'spin 1s linear infinite' }} />
+      </div>
+    )
+  }
+
   return (
     <div className="fade-in">
-      <p className="t-body" style={{ marginBottom: 24 }}>Track candidates across every stage of the placement lifecycle.</p>
+      {/* Error banner */}
+      {error && (
+        <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--status-error)', padding: '16px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <AlertCircle style={{ width: 18, height: 18, color: 'var(--status-error)', flexShrink: 0 }} />
+          <p style={{ color: 'var(--status-error)', fontSize: 14 }}>{error}</p>
+        </div>
+      )}
 
-      <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 16 }}>
-        {stages.map((stage) => (
-          <div key={stage.name} style={{ flexShrink: 0, width: 280 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingLeft: 4 }}>
-              <span className="t-label-gold">{stage.name}</span>
-              <span className="tag">{stage.count}</span>
-            </div>
+      <p className="t-body" style={{ marginBottom: 24 }}>Track applications across every stage of the pipeline.</p>
 
-            <div style={{ background: 'var(--off-black)', border: '1px solid var(--border)', padding: 12, minHeight: 200 }}>
-              {stage.items.map((item) => (
-                <div key={item.id} className="card-hover" style={{ background: 'var(--surface)', border: '1px solid var(--border)', padding: '16px 18px', marginBottom: 8, cursor: 'pointer' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <span style={{ color: 'var(--white)', fontSize: 13, fontWeight: 400 }}>{item.candidate}</span>
-                    <span style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 500, color: item.match >= 90 ? 'var(--gold)' : 'var(--muted)' }}>{item.match}%</span>
+      {applications.length === 0 && !error ? (
+        <div style={{ textAlign: 'center', padding: '60px 0' }}>
+          <p style={{ color: 'var(--muted)', fontSize: 14 }}>No applications yet.</p>
+          <p className="t-label" style={{ marginTop: 8 }}>Approve jobs from the Review Queue to start your pipeline.</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 16 }}>
+          {stages.map((stage) => (
+            <div key={stage.name} style={{ flexShrink: 0, width: 280 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingLeft: 4 }}>
+                <span className="t-label-gold">{stage.name}</span>
+                <span className="tag">{stage.count}</span>
+              </div>
+
+              <div style={{ background: 'var(--off-black)', border: '1px solid var(--border)', padding: 12, minHeight: 200 }}>
+                {stage.items.length === 0 ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 100, color: 'var(--muted)', fontSize: 13 }}>
+                    No items
                   </div>
-                  <p className="t-label" style={{ marginBottom: 10 }}>{item.role} @ {item.company}</p>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <StatusBadge status={stage.status} />
-                    <span className="t-label">{item.time}</span>
-                  </div>
-                </div>
-              ))}
-
-              {stage.items.length < stage.count && (
-                <button className="t-label" style={{ width: '100%', padding: '10px 0', background: 'none', border: 'none', cursor: 'pointer' }}>
-                  + {stage.count - stage.items.length} more
-                </button>
-              )}
+                ) : (
+                  stage.items.map((item) => (
+                    <div key={item.id} className="card-hover" style={{ background: 'var(--surface)', border: '1px solid var(--border)', padding: '16px 18px', marginBottom: 8, cursor: 'pointer' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <span style={{ color: 'var(--white)', fontSize: 13, fontWeight: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150 }}>{item.role}</span>
+                        {item.match > 0 && (
+                          <span style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 500, color: item.match >= 90 ? 'var(--gold)' : 'var(--muted)' }}>{item.match}%</span>
+                        )}
+                      </div>
+                      <p className="t-label" style={{ marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@ {item.company}</p>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <StatusBadge status={stage.status} />
+                        <span className="t-label">{item.time}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

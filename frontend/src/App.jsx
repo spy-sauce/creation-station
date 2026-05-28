@@ -10,6 +10,7 @@ import Overview from './pages/Overview'
 import Candidates from './pages/Candidates'
 import Pipeline from './pages/Pipeline'
 import ReviewQueue from './pages/ReviewQueue'
+import ReviewDetail from './pages/ReviewDetail'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
 
@@ -94,6 +95,7 @@ export default function App() {
               <Route path={routes.candidates} element={<Candidates />} />
               <Route path={routes.pipeline} element={<Pipeline />} />
               <Route path={routes.reviewQueue} element={<ReviewQueue />} />
+              <Route path={routes.reviewDetail} element={<ReviewDetail />} />
               <Route path={routes.analytics} element={<Analytics />} />
               <Route path={routes.settings} element={<Settings />} />
             </Route>

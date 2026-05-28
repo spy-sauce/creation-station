@@ -1,15 +1,19 @@
-import { useState, useEffect } from 'react'
-import { Users, Briefcase, Send, TrendingUp, Zap, Clock, Rocket } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Users, Briefcase, Send, TrendingUp, Zap, Clock, Rocket, AlertCircle } from 'lucide-react'
 import StatCard from '../components/StatCard'
 import StatusBadge from '../components/StatusBadge'
 import { useAuth } from '../context/AuthContext'
-import { getDiscoveryStats, triggerDiscoveryRun } from '../lib/api'
+import { getDiscoveryStats, triggerDiscoveryRun } from '../api/discovery'
+import { subscribeDiscoveryEvents } from '../api/events'
+import { TalentAgentApiError } from '../api/client'
+import { log } from '../lib/logger'
 
-const agents = [
-  { name: 'Discovery Engine', status: 'idle' },
-  { name: 'Application Engine', status: 'idle' },
-  { name: 'Contact Finder', status: 'idle' },
-  { name: 'Outreach Composer', status: 'idle' },
+// Agent display configuration - statuses are updated dynamically via SSE
+const agentConfig = [
+  { key: 'discovery', name: 'Discovery Engine' },
+  { key: 'application', name: 'Application Engine' },
+  { key: 'contact', name: 'Contact Finder' },
+  { key: 'outreach', name: 'Outreach Composer' },
 ]
 
 export default function Overview() {
@@ -17,18 +21,95 @@ export default function Overview() {
   const [stats, setStats] = useState(null)
   const [runTriggered, setRunTriggered] = useState(false)
   const [triggerLoading, setTriggerLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [agentStatuses, setAgentStatuses] = useState({
+    discovery: 'idle',
+    application: 'idle',
+    contact: 'idle',
+    outreach: 'idle',
+  })
 
-  useEffect(() => {
-    if (user?.candidate_id) {
-      getDiscoveryStats(user.candidate_id).then(setStats).catch(() => {})
+  // Fetch discovery stats
+  const fetchStats = useCallback(async () => {
+    if (!user?.candidate_id) return
+    try {
+      const data = await getDiscoveryStats(user.candidate_id)
+      setStats(data)
+      setError(null)
+    } catch (err) {
+      if (err instanceof TalentAgentApiError) {
+        log.error('overview.fetch_stats_error', { status: err.status, message: err.message })
+        setError(err.message)
+      } else {
+        log.error('overview.fetch_stats_error', { error: String(err) })
+        setError('Failed to load discovery stats')
+      }
     }
   }, [user?.candidate_id])
+
+  useEffect(() => {
+    fetchStats()
+  }, [fetchStats])
+
+  // Subscribe to real-time discovery events
+  useEffect(() => {
+    if (!user?.candidate_id) return
+
+    const unsubscribe = subscribeDiscoveryEvents(
+      (event) => {
+        log.info('overview.discovery_event', { event: event.event, candidateId: event.candidate_id })
+
+        // Update agent status based on event
+        switch (event.event) {
+          case 'RUN_STARTED':
+            setAgentStatuses(prev => ({ ...prev, discovery: 'running' }))
+            break
+          case 'RUN_COMPLETE':
+          case 'DIGEST_READY':
+            setAgentStatuses(prev => ({ ...prev, discovery: 'completed' }))
+            // Refresh stats when run completes
+            fetchStats()
+            break
+          case 'RUN_FAILED':
+            setAgentStatuses(prev => ({ ...prev, discovery: 'failed' }))
+            break
+          default:
+            // Keep running for intermediate events
+            if (event.event.startsWith('CRAWL_') || event.event.endsWith('_BUILT') || event.event.endsWith('_LOADED')) {
+              setAgentStatuses(prev => ({ ...prev, discovery: 'running' }))
+            }
+        }
+      },
+      {
+        onError: () => {
+          log.warn('overview.sse_connection_error')
+        },
+      }
+    )
+
+    return unsubscribe
+  }, [user?.candidate_id, fetchStats])
 
   const handleTriggerRun = async () => {
     if (!user?.candidate_id) return
     setTriggerLoading(true)
-    try { await triggerDiscoveryRun(user.candidate_id, true); setRunTriggered(true) }
-    catch {} finally { setTriggerLoading(false) }
+    setError(null)
+    try {
+      await triggerDiscoveryRun(user.candidate_id, false)
+      setRunTriggered(true)
+      setAgentStatuses(prev => ({ ...prev, discovery: 'running' }))
+      log.info('overview.discovery_run_triggered', { candidateId: user.candidate_id })
+    } catch (err) {
+      if (err instanceof TalentAgentApiError) {
+        log.error('overview.trigger_run_error', { status: err.status, message: err.message })
+        setError(err.message)
+      } else {
+        log.error('overview.trigger_run_error', { error: String(err) })
+        setError('Failed to start discovery run')
+      }
+    } finally {
+      setTriggerLoading(false)
+    }
   }
 
   const displayStats = [
@@ -38,15 +119,26 @@ export default function Overview() {
     { label: 'Discovery Runs', value: stats ? String(stats.total_runs) : '0', change: 0, icon: TrendingUp },
   ]
 
+  // Map dynamic agent statuses
+  const agents = agentConfig.map(a => ({ name: a.name, status: agentStatuses[a.key] }))
+
   return (
     <div className="fade-in" style={{ maxWidth: 1100 }}>
+      {/* Error banner */}
+      {error && (
+        <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--status-error)', padding: '16px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <AlertCircle style={{ width: 18, height: 18, color: 'var(--status-error)', flexShrink: 0 }} />
+          <p style={{ color: 'var(--status-error)', fontSize: 14 }}>{error}</p>
+        </div>
+      )}
+
       {/* Welcome */}
       {user && (
         <div className="card-hover" style={{ background: 'var(--off-black)', border: '1px solid var(--border)', padding: '32px 36px', marginBottom: 32 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24 }}>
             <div>
               <p className="t-label-gold" style={{ marginBottom: 8 }}>Welcome back</p>
-              <h2 className="t-serif" style={{ fontSize: 24, marginBottom: 8 }}>{user.name || 'Space Cowboy'}</h2>
+              <h2 className="t-serif" style={{ fontSize: 24, marginBottom: 8 }}>{user.name || 'there'}</h2>
               <p className="t-body">
                 {stats?.total_runs > 0
                   ? `Your agent has completed ${stats.total_runs} discovery runs and found ${stats.total_discovered} roles.`
