@@ -1,0 +1,116 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "expected_schema_v1.json",
+  "title": "Expected Upstream Response Schemas",
+  "description": "JSON Schema definitions for validating Greenhouse, Lever, and Ashby API responses during health checks. Version 1 of the synthetics-crawler-agent schema contract.",
+  "definitions": {
+    "greenhouse": {
+      "type": "object",
+      "required": ["jobs"],
+      "properties": {
+        "jobs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "title"],
+            "properties": {
+              "id": { "type": "integer" },
+              "title": { "type": "string" },
+              "location": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" }
+                }
+              },
+              "absolute_url": { "type": "string", "format": "uri" },
+              "updated_at": { "type": "string" }
+            }
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "lever": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "properties": {
+          "id": { "type": "string" },
+          "text": { "type": "string" },
+          "categories": {
+            "type": "object",
+            "properties": {
+              "team": { "type": "string" },
+              "location": { "type": "string" },
+              "commitment": { "type": "string" }
+            }
+          },
+          "hostedUrl": { "type": "string", "format": "uri" },
+          "createdAt": { "type": "integer" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "ashby": {
+      "type": "object",
+      "required": ["jobs"],
+      "properties": {
+        "jobs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "title"],
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "location": { "type": "string" },
+              "departmentName": { "type": "string" },
+              "employmentType": { "type": "string" },
+              "publishedDate": { "type": "string" },
+              "applicationUrl": { "type": "string", "format": "uri" }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "health_check_targets": {
+    "greenhouse": {
+      "slug": "anthropic",
+      "endpoint": "https://boards.greenhouse.io/anthropic.json",
+      "method": "GET"
+    },
+    "lever": {
+      "slug": "netflix",
+      "endpoint": "https://api.lever.co/v0/postings/netflix?limit=1",
+      "method": "GET"
+    },
+    "ashby": {
+      "slug": "posthog",
+      "endpoint": "https://api.ashbyhq.com/posting-api/job-board/posthog",
+      "method": "GET"
+    }
+  },
+  "validation_rules": {
+    "greenhouse": {
+      "schema_ref": "#/definitions/greenhouse",
+      "minimum_jobs": 1
+    },
+    "lever": {
+      "schema_ref": "#/definitions/lever",
+      "minimum_jobs": 1
+    },
+    "ashby": {
+      "schema_ref": "#/definitions/ashby",
+      "minimum_jobs": 1
+    }
+  },
+  "version": "1.0.0",
+  "last_updated": "2026-05-28T00:00:00Z"
+}
