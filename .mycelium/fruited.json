@@ -1,0 +1,84 @@
+{
+  "leaves": {
+    "scheduler-agent.app": {
+      "fruitedAt": "2026-05-28T02:50:13.839Z",
+      "branch": "feat/scheduler-agent.app"
+    },
+    "scheduler-agent.tasks": {
+      "fruitedAt": "2026-05-28T02:51:21.624Z",
+      "branch": "feat/scheduler-agent.tasks"
+    },
+    "scheduler-agent.retry": {
+      "fruitedAt": "2026-05-28T02:51:44.950Z",
+      "branch": "feat/scheduler-agent.retry"
+    },
+    "scheduler-agent.beat": {
+      "fruitedAt": "2026-05-28T02:52:05.699Z",
+      "branch": "feat/scheduler-agent.beat"
+    },
+    "api-streaming-agent.heartbeat": {
+      "fruitedAt": "2026-05-28T02:52:25.578Z",
+      "branch": "feat/api-streaming-agent.heartbeat"
+    },
+    "api-streaming-agent.backpressure": {
+      "fruitedAt": "2026-05-28T02:53:09.771Z",
+      "branch": "feat/api-streaming-agent.backpressure"
+    },
+    "api-streaming-agent.events": {
+      "fruitedAt": "2026-05-28T02:53:16.007Z",
+      "branch": "feat/api-streaming-agent.events"
+    },
+    "api-client-agent.client": {
+      "fruitedAt": "2026-05-28T02:54:11.804Z",
+      "branch": "feat/api-client-agent.client"
+    },
+    "api-streaming-agent.subscriber": {
+      "fruitedAt": "2026-05-28T02:54:46.962Z",
+      "branch": "feat/api-streaming-agent.subscriber"
+    },
+    "api-client-agent.discovery": {
+      "fruitedAt": "2026-05-28T02:55:33.439Z",
+      "branch": "feat/api-client-agent.discovery"
+    },
+    "api-client-agent.auth": {
+      "fruitedAt": "2026-05-28T02:55:44.603Z",
+      "branch": "feat/api-client-agent.auth"
+    },
+    "api-client-agent.applications": {
+      "fruitedAt": "2026-05-28T02:55:57.502Z",
+      "branch": "feat/api-client-agent.applications"
+    },
+    "api-client-agent.events": {
+      "fruitedAt": "2026-05-28T02:57:21.551Z",
+      "branch": "feat/api-client-agent.events"
+    },
+    "api-client-agent.error-handling": {
+      "fruitedAt": "2026-05-28T02:57:52.636Z",
+      "branch": "feat/api-client-agent.error-handling"
+    },
+    "tests-agent.discovery.pubsub": {
+      "fruitedAt": "2026-05-28T03:00:09.667Z",
+      "branch": "feat/tests-agent.discovery.pubsub"
+    },
+    "tests-agent.scheduler.daily": {
+      "fruitedAt": "2026-05-28T03:00:21.600Z",
+      "branch": "feat/tests-agent.scheduler.daily"
+    },
+    "tests-agent.api.events": {
+      "fruitedAt": "2026-05-28T03:03:04.248Z",
+      "branch": "feat/tests-agent.api.events"
+    },
+    "api-client-agent.page-wiring": {
+      "fruitedAt": "2026-05-28T03:03:42.881Z",
+      "branch": "feat/api-client-agent.page-wiring"
+    },
+    "tests-agent.frontend.client": {
+      "fruitedAt": "2026-05-28T03:03:49.737Z",
+      "branch": "feat/tests-agent.frontend.client"
+    },
+    "tests-agent.api.review": {
+      "fruitedAt": "2026-05-28T03:09:58.784Z",
+      "branch": "feat/tests-agent.api.review"
+    }
+  }
+}

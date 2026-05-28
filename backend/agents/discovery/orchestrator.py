@@ -125,16 +125,16 @@ class DiscoveryOrchestrator:
             )
             await self._publish_status(candidate_id, "MANIFEST_BUILT")
 
-            # 4. Crawl (currently stubbed — Phase 1B)
+            # 4. Crawl across all four sources
             crawler = CrawlerAgent(candidate_id)
             raw_jobs = await crawler.run(manifest)
             log.info("orchestrator.crawl_complete", jobs_found=len(raw_jobs))
             await self._publish_status(candidate_id, "CRAWL_COMPLETE")
 
             # 5. Score with bounded concurrency
-            semaphore = asyncio.Semaphore(settings.crawl_concurrency)
+            semaphore = asyncio.Semaphore(settings.crawl_concurrency)  # noqa: F841 — reserved for per-job-scoring path
 
-            async def score_with_semaphore(job):
+            async def score_with_semaphore(job):  # noqa: F841 — reserved for per-job-scoring path
                 async with semaphore:
                     return job
 

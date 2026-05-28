@@ -1,4 +1,4 @@
-# CLAUDE.md — Talent Agent
+# CLAUDE.md — Talent Agent (Iter-4)
 ## VibeSpace LLC · Built by Space Cowboy #9
 
 ---
@@ -13,9 +13,9 @@ You operate with the autonomy of a principal engineer. You make architectural de
 
 ## OPERATOR
 
-**Sean Young** (goes by SPY, "Space Cowboy #9")  
-Founder & CEO, VibeSpace LLC  
-Principal AI Engineer · Systems Architect  
+**Sean Young** (goes by SPY, "Space Cowboy #9")
+Founder & CEO, VibeSpace LLC
+Principal AI Engineer · Systems Architect
 Miami, FL · github.com/tyzeeington · spy@seanyoung.biz
 
 **Background:** 7+ years enterprise fintech engineering (JPMorgan Chase, Bank of America). Expert in Java/Spring Boot, Python/FastAPI, distributed systems, microservices, Kubernetes, and AI systems. Now building the Digital Renaissance — an interconnected ecosystem of AI-powered platforms.
@@ -43,80 +43,86 @@ Miami, FL · github.com/tyzeeington · spy@seanyoung.biz
 
 **Target market:** Recruiting agencies managing 50–500 candidates simultaneously.
 
+**Iter-4 Focus:** End-to-end loop validation. Discovery publishes status events, the API streams them via SSE, the frontend listens, the operator approves. Five seams to close:
+1. Discovery orchestrator pub/sub (`_publish_status` helper)
+2. Celery beat daily 7am cron trigger
+3. Frontend `apiClient` wired to FastAPI surface
+4. Review queue approve/reject end-to-end
+5. Infra-agent leaf decomposition for surgical changes
+
 ---
 
-## TECH STACK
+## Stack
+- Frontend: Next.js 14 (App Router) → Vercel
+- Backend: FastAPI (Python 3.11+) → Hetzner
+- DB: PostgreSQL via Supabase
+- Auth: Custom WebAuthn/Passkeys + JWT
+- Payments: Stripe
+- Storage: Supabase Storage
 
-| Layer | Stack |
+**STACK CANON OVERRIDE (Talent Agent specific):**
+
+The repo uses `--stack nextjs-fastapi-supabase` as a label only — the real stack is:
+
+| Layer | Actual Stack |
 |---|---|
-| Language | Python 3.12 |
-| Backend | FastAPI · Pydantic v2 · SQLAlchemy 2.0 async |
-| Database | PostgreSQL 15 · Redis 7 |
-| Task Queue | Celery · Redis broker |
-| AI | Claude API (`claude-sonnet-4-20250514`) · Anthropic Python SDK |
-| Web Automation | Playwright async · httpx · BeautifulSoup |
-| Infrastructure | Docker · Docker Compose (local) · AWS ECS Fargate (prod) |
-| Migrations | Alembic |
-| Testing | pytest · pytest-asyncio |
-| License | Apache 2.0 |
+| Backend | FastAPI · Python 3.12 · Pydantic v2 · SQLAlchemy 2.0 async · Alembic · httpx · Playwright async · Celery |
+| DB | raw PostgreSQL 15 (NOT Supabase) · Redis 7 (cache + pub/sub + Celery broker) |
+| Frontend | React 19 · Vite 8 · Tailwind · react-router-dom · lucide-react |
+
+**No Next.js, no Supabase client, no httpOnly cookies, no RLS, no NEXT_PUBLIC_ env vars.**
 
 ---
 
-## PROJECT STRUCTURE
+## Stream Tag Convention
+
+All commits, PR titles, and HYPHA notes use the format:
 
 ```
-talent-agent/
-├── CLAUDE.md                    ← you are here
-├── README.md
-├── prompts/                     ← Claude Code build prompts
-│   ├── 01-discovery-engine.md
-│   └── 02-application-engine.md
-├── backend/
-│   ├── main.py                  ← FastAPI app entry
-│   ├── config.py                ← settings from env
-│   ├── database.py              ← async SQLAlchemy engine
-│   ├── agents/
-│   │   ├── discovery/           ← Phase 1
-│   │   │   ├── identity_profiler.py
-│   │   │   ├── archetype_generator.py
-│   │   │   ├── crawler_agent.py
-│   │   │   ├── relevance_scorer.py
-│   │   │   ├── digest_builder.py
-│   │   │   └── orchestrator.py
-│   │   └── application/         ← Phase 2
-│   │       ├── jd_parser.py
-│   │       ├── resume_tailor.py
-│   │       ├── company_intel.py
-│   │       ├── contact_finder.py
-│   │       ├── outreach_composer.py
-│   │       ├── auto_apply.py
-│   │       ├── crm.py
-│   │       └── orchestrator.py
-│   ├── models/
-│   │   ├── discovery.py
-│   │   └── application.py
-│   ├── api/
-│   │   ├── discovery.py
-│   │   ├── application.py
-│   │   └── review.py
-│   └── migrations/
-│       ├── 001_discovery.sql
-│       └── 002_application.sql
-├── frontend/                    ← Review Dashboard (React 18 · Vite · Tailwind)
-│   └── src/
-├── tests/
-│   ├── discovery/
-│   └── application/
-├── deploy/
-│   ├── deploy.sh                ← master deployment script
-│   ├── setup-aws.sh             ← one-time AWS infra bootstrap
-│   ├── ecs-task-def-backend.json
-│   └── ecs-task-def-frontend.json
-├── digital-dash-pipeline.yml    ← Digital Dash CI/CD pipeline config
-├── docker-compose.yml
-├── .env.example
-└── requirements.txt
+MF/DOMAIN: description
 ```
+
+Examples:
+- `MF/DISCOVERY: implement _publish_status helper`
+- `MF/SCHEDULER: wire Celery beat daily task`
+- `MF/API-STREAMING: add SSE event stream endpoint`
+
+---
+
+## Active HYPHA
+
+Each biome's specification lives at:
+```
+hyphae/HYPHA-{DOMAIN}.md
+```
+
+Where `{DOMAIN}` is the agent id in UPPER-SNAKE-CASE (e.g., `HYPHA-DISCOVER-AGENT.md`).
+
+---
+
+## Contracts
+
+Frozen contracts live in `NUTRIENTS.md`. Amendments only via `FRUIT_READY` contract-amendment line — never silent edits.
+
+---
+
+## Rules
+
+1. **FastAPI only for backend** — no Express, no other framework
+2. **All DB access via Supabase Python or JS client** — no raw SQL outside migrations (NEGATED: this repo uses SQLAlchemy async)
+3. **Design tokens from NUTRIENTS.md → DESIGN_TOKENS** — no hardcoded colors or fonts
+4. **Mobile-first** — every component built for mobile, scaled up to desktop
+5. **TypeScript strict mode** — no `any`
+6. **Dark theme is default and only**
+7. **No `print()` anywhere** — `structlog` only; frontend uses logging utility, not `console.log`
+8. **No comments containing "STUB", "TODO: implement", "Phase 1B", or "placeholder"** — the crawler is real now
+9. **No `--no-verify` git commits** — auto-commit hooks must pass
+10. **No raising concurrency above -c 4** — cache hit-rate observability is iter-5 work
+11. **No Bash escape hatches** — sub-agents write/edit files via Write and Edit only
+12. **No skipping the test biome** — every biome ships with tests
+13. **No mocked data in frontend pages** — show error states if backend unavailable
+14. **Frozen biomes are frozen** — do NOT touch `data-agent`, `design-agent`, `auth-agent`, `agents-agent`, or iter-3.5 crawler internals
+15. **No new top-level dependencies** — `celery`, `fakeredis`, `vitest` allowed; nothing else without FRUIT_READY line
 
 ---
 
@@ -193,21 +199,19 @@ Every status transition:
 
 ## CURRENT PHASE
 
-**Phase 1 — MVP (single candidate)**
-- Goal: Get the system working end-to-end for one candidate (Sean Young)
-- Scope: Discovery Engine + Application Engine + Review Dashboard
-- Done when: System finds a real job, tailors a real resume, composes a real email, fills a real form — all reviewed and approved by the operator
+**Iteration 4 — End-to-End Loop Validation**
 
-**Do not over-engineer for multi-tenancy yet.** Design with multi-tenancy in mind (candidate_id as FK everywhere), but don't build the agency dashboard or white-label features yet. Validate the core loop first.
+This iteration closes the loop: the orchestrator publishes status, the dashboard reads it, and a single command takes a real candidate through Discovery → Review → Apply.
 
----
+**Goal:** Run `python -m backend.cli loop --candidate sean-young` and watch the system go from a resume PDF on disk to a tailored email draft awaiting human approval in the Review Queue UI — with structured logs and pub/sub events at every stage.
 
-## CONNECTIONS TO THE BROADER ECOSYSTEM
+**New Biomes:**
+- `scheduler-agent` — Celery beat wiring for daily 7am cron
+- `api-client-agent` — Frontend API client wiring
+- `api-streaming-agent` — SSE event stream endpoint
+- `tests-agent` — pytest and vitest test suites
 
-- **Mycelium Agent Network:** Discovery and Application agents can be wrapped as Mycelium `BaseAgent` nodes in a future integration — design interfaces to be compatible
-- **Bloom:** Candidate identity profile maps to a Bloom card — `personal_context` field in `Candidate` model maps to Bloom's identity layer
-- **PESO Token:** Future: application success fees and agency payments flow through PESO
-- **Digital Dash:** This project's CI/CD pipeline should use Digital Dash when ready
+**Budget:** `organism.budget.maxUsd: 100`. Expected spend: ~$10-15 with prompt cache hits. Stop cultivation if `spend > $50`.
 
 ---
 
@@ -223,16 +227,8 @@ When spinning up Claude Code subagents for parallel tasks, name them:
 | Database / Migrations | **Bedrock** |
 | Testing | **Watchdog** |
 | Debugging | **Sherlock** |
-
----
-
-## END GOAL
-
-This system is being built for **recruiting agencies** as a B2B SaaS product. One agency manages 50–500 candidates. The system runs all of them simultaneously, autonomously, with humans reviewing and approving before anything sends.
-
-The MVP is personal. The vision is a platform. Build the MVP right and the platform follows naturally.
-
-*The Dot Connects.*
+| Scheduler | **Clockwork** |
+| API Streaming | **Conduit** |
 
 ---
 
@@ -247,3 +243,13 @@ After completing any feature, fix, or meaningful unit of work:
 
 **Custom message:** `./auto-commit.sh "feat(scope): your message"`
 **Auto-message:** `./auto-commit.sh` (detects scope + action from changed files)
+
+---
+
+## END GOAL
+
+This system is being built for **recruiting agencies** as a B2B SaaS product. One agency manages 50–500 candidates. The system runs all of them simultaneously, autonomously, with humans reviewing and approving before anything sends.
+
+The MVP is personal. The vision is a platform. Build the MVP right and the platform follows naturally.
+
+*The Dot Connects.*

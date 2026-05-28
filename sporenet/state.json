@@ -1,0 +1,910 @@
+{
+  "session_id": "exec-2026-05-28T03-10-55-971Z",
+  "organism": "talent-agent",
+  "started_at": "2026-05-28T03:10:55.985Z",
+  "ship_target": "2026-06-01",
+  "gating": "contract-freeze",
+  "total": 100,
+  "leaves": [
+    {
+      "id": "data-agent.migrations.init",
+      "agent": "data-agent",
+      "tag": "DATA",
+      "scope": "backend/migrations/001_init.sql — extensions, candidates table baseline",
+      "status": "done",
+      "commit": "0f553b0",
+      "completed_at": "2026-05-28T03:11:31.274Z"
+    },
+    {
+      "id": "data-agent.migrations.discovery",
+      "agent": "data-agent",
+      "tag": "DATA",
+      "scope": "backend/migrations/002_discovery.sql — discovered_jobs, scored_jobs, daily_digests, crawl_runs per HYPHA-SCHEMA-CORE",
+      "status": "done",
+      "commit": "0f553b0",
+      "completed_at": "2026-05-28T03:11:31.382Z"
+    },
+    {
+      "id": "data-agent.migrations.application",
+      "agent": "data-agent",
+      "tag": "DATA",
+      "scope": "backend/migrations/003_application.sql — applications, application_events, outreach_messages, contacts",
+      "status": "done",
+      "commit": "0f553b0",
+      "completed_at": "2026-05-28T03:11:31.493Z"
+    },
+    {
+      "id": "data-agent.migrations.auth",
+      "agent": "data-agent",
+      "tag": "DATA",
+      "scope": "backend/migrations/004_auth.sql — magic_link_tokens, sessions",
+      "status": "done",
+      "commit": "0f553b0",
+      "completed_at": "2026-05-28T03:11:31.603Z"
+    },
+    {
+      "id": "data-agent.models.base",
+      "agent": "data-agent",
+      "tag": "DATA",
+      "scope": "backend/models/__init__.py + base Declarative class with UUID PK + created_at/updated_at mixins",
+      "status": "done",
+      "commit": "0f553b0",
+      "completed_at": "2026-05-28T03:11:31.711Z"
+    },
+    {
+      "id": "data-agent.models.discovery",
+      "agent": "data-agent",
+      "tag": "DATA",
+      "scope": "backend/models/discovery.py — Candidate, DiscoveredJob, ScoredJob, DailyDigest, CrawlRun ORM",
+      "status": "done",
+      "commit": "0f553b0",
+      "completed_at": "2026-05-28T03:11:31.819Z"
+    },
+    {
+      "id": "data-agent.models.application",
+      "agent": "data-agent",
+      "tag": "DATA",
+      "scope": "backend/models/application.py — Application, ApplicationEvent, OutreachMessage, Contact ORM",
+      "status": "done",
+      "commit": "0f553b0",
+      "completed_at": "2026-05-28T03:11:31.928Z"
+    },
+    {
+      "id": "data-agent.models.auth",
+      "agent": "data-agent",
+      "tag": "DATA",
+      "scope": "backend/models/auth.py — MagicLinkToken, Session ORM",
+      "status": "done",
+      "commit": "0f553b0",
+      "completed_at": "2026-05-28T03:11:32.038Z"
+    },
+    {
+      "id": "data-agent.schemas.discovery",
+      "agent": "data-agent",
+      "tag": "DATA",
+      "scope": "backend/agents/discovery/schemas.py — Pydantic v2 schemas for all discovery contracts",
+      "status": "done",
+      "commit": "0f553b0",
+      "completed_at": "2026-05-28T03:11:32.145Z"
+    },
+    {
+      "id": "data-agent.schemas.application",
+      "agent": "data-agent",
+      "tag": "DATA",
+      "scope": "backend/agents/application/schemas.py — Pydantic v2 schemas for application contracts",
+      "status": "done",
+      "commit": "0f553b0",
+      "completed_at": "2026-05-28T03:11:32.254Z"
+    },
+    {
+      "id": "design-agent.tokens.palette",
+      "agent": "design-agent",
+      "tag": "DESIGN",
+      "scope": "frontend/src/design/tokens.css — Top Shelf palette as CSS custom properties (--ink, --paper, --gold, severity colors)",
+      "status": "done",
+      "commit": "4c73ccf",
+      "completed_at": "2026-05-28T03:11:32.363Z"
+    },
+    {
+      "id": "design-agent.tokens.typography",
+      "agent": "design-agent",
+      "tag": "DESIGN",
+      "scope": "frontend/src/design/typography.css — font stacks + scale + line-heights",
+      "status": "done",
+      "commit": "4c73ccf",
+      "completed_at": "2026-05-28T03:11:32.472Z"
+    },
+    {
+      "id": "design-agent.tokens.spacing",
+      "agent": "design-agent",
+      "tag": "DESIGN",
+      "scope": "frontend/src/design/spacing.css — 4px-based spacing scale + radius tokens",
+      "status": "done",
+      "commit": "4c73ccf",
+      "completed_at": "2026-05-28T03:11:32.581Z"
+    },
+    {
+      "id": "design-agent.primitives.status-badge",
+      "agent": "design-agent",
+      "tag": "DESIGN",
+      "scope": "frontend/src/components/StatusBadge.tsx — variant prop per agent lifecycle state, identity-color border",
+      "status": "done",
+      "commit": "4c73ccf",
+      "completed_at": "2026-05-28T03:11:32.688Z"
+    },
+    {
+      "id": "design-agent.primitives.stat-card",
+      "agent": "design-agent",
+      "tag": "DESIGN",
+      "scope": "frontend/src/components/StatCard.tsx — title + value + delta + sparkline slot",
+      "status": "done",
+      "commit": "4c73ccf",
+      "completed_at": "2026-05-28T03:11:32.796Z"
+    },
+    {
+      "id": "design-agent.docs.cheatsheet",
+      "agent": "design-agent",
+      "tag": "DESIGN",
+      "scope": "frontend/src/design/CHEATSHEET.md — token names, usage rules, do/don't",
+      "status": "done",
+      "commit": "4c73ccf",
+      "completed_at": "2026-05-28T03:11:32.905Z"
+    },
+    {
+      "id": "design-agent.docs.reference",
+      "agent": "design-agent",
+      "tag": "DESIGN",
+      "scope": "frontend/src/design/REFERENCE.md — full token table + component gallery",
+      "status": "done",
+      "commit": "4c73ccf",
+      "completed_at": "2026-05-28T03:11:33.015Z"
+    },
+    {
+      "id": "auth-agent.magic-link.request",
+      "agent": "auth-agent",
+      "tag": "AUTH",
+      "scope": "backend/api/auth.py POST /auth/magic-link — issue token, send via Resend, rate-limit 3/hour/email",
+      "status": "done",
+      "commit": "a7a4b0d",
+      "completed_at": "2026-05-28T03:11:33.124Z"
+    },
+    {
+      "id": "auth-agent.magic-link.verify",
+      "agent": "auth-agent",
+      "tag": "AUTH",
+      "scope": "backend/api/auth.py POST /auth/verify — validate token, mint JWT, return session cookie",
+      "status": "done",
+      "commit": "a7a4b0d",
+      "completed_at": "2026-05-28T03:11:33.231Z"
+    },
+    {
+      "id": "auth-agent.magic-link.resend",
+      "agent": "auth-agent",
+      "tag": "AUTH",
+      "scope": "backend/api/auth.py POST /auth/resend — invalidate prior token, issue new",
+      "status": "done",
+      "commit": "a7a4b0d",
+      "completed_at": "2026-05-28T03:11:33.340Z"
+    },
+    {
+      "id": "auth-agent.jwt.issue",
+      "agent": "auth-agent",
+      "tag": "AUTH",
+      "scope": "backend/auth/jwt.py issue_jwt(candidate_id, ttl_hours=24) — HS256, signed with settings.jwt_secret",
+      "status": "done",
+      "commit": "a7a4b0d",
+      "completed_at": "2026-05-28T03:11:33.451Z"
+    },
+    {
+      "id": "auth-agent.jwt.validate",
+      "agent": "auth-agent",
+      "tag": "AUTH",
+      "scope": "backend/auth/jwt.py validate_jwt(token) — raise on expired/invalid",
+      "status": "done",
+      "commit": "a7a4b0d",
+      "completed_at": "2026-05-28T03:11:33.560Z"
+    },
+    {
+      "id": "auth-agent.jwt.current-user",
+      "agent": "auth-agent",
+      "tag": "AUTH",
+      "scope": "backend/auth/deps.py get_current_user FastAPI dependency — reads cookie or Authorization header, loads Candidate",
+      "status": "done",
+      "commit": "a7a4b0d",
+      "completed_at": "2026-05-28T03:11:33.667Z"
+    },
+    {
+      "id": "obs-agent.logging.config",
+      "agent": "obs-agent",
+      "tag": "OBS",
+      "scope": "backend/obs/logging.py — structlog config, JSON renderer in prod, console in dev, request-id correlation",
+      "status": "done",
+      "commit": "6a8565c",
+      "completed_at": "2026-05-28T03:11:33.776Z"
+    },
+    {
+      "id": "obs-agent.logging.pii-redact",
+      "agent": "obs-agent",
+      "tag": "OBS",
+      "scope": "backend/obs/redact.py — processor that scrubs emails, phones, resumes, tokens before log emission",
+      "status": "done",
+      "commit": "6a8565c",
+      "completed_at": "2026-05-28T03:11:33.885Z"
+    },
+    {
+      "id": "obs-agent.pubsub.taxonomy",
+      "agent": "obs-agent",
+      "tag": "OBS",
+      "scope": "backend/obs/events.py — channel constants + payload schemas (agent.status.{name}, digest.ready, application.event)",
+      "status": "done",
+      "commit": "6a8565c",
+      "completed_at": "2026-05-28T03:11:33.993Z"
+    },
+    {
+      "id": "obs-agent.pubsub.publisher",
+      "agent": "obs-agent",
+      "tag": "OBS",
+      "scope": "backend/obs/publisher.py — publish_event(channel, payload) async helper with retry + dead-letter logging",
+      "status": "done",
+      "commit": "6a8565c",
+      "completed_at": "2026-05-28T03:11:34.103Z"
+    },
+    {
+      "id": "apply-agent.jd-parser",
+      "agent": "apply-agent",
+      "tag": "APPLY",
+      "scope": "backend/agents/application/jd_parser.py — Claude extracts requirements, responsibilities, comp signal from raw_description",
+      "status": "done",
+      "commit": "160c346",
+      "completed_at": "2026-05-28T03:11:34.217Z"
+    },
+    {
+      "id": "apply-agent.resume-tailor",
+      "agent": "apply-agent",
+      "tag": "APPLY",
+      "scope": "backend/agents/application/resume_tailor.py — emphasize matching experience without fabricating skills",
+      "status": "done",
+      "commit": "160c346",
+      "completed_at": "2026-05-28T03:11:34.328Z"
+    },
+    {
+      "id": "apply-agent.company-intel",
+      "agent": "apply-agent",
+      "tag": "APPLY",
+      "scope": "backend/agents/application/company_intel.py — Claude + web fetch for mission, recent news, funding signal",
+      "status": "done",
+      "commit": "160c346",
+      "completed_at": "2026-05-28T03:11:34.438Z"
+    },
+    {
+      "id": "apply-agent.contact-finder",
+      "agent": "apply-agent",
+      "tag": "APPLY",
+      "scope": "backend/agents/application/contact_finder.py — LinkedIn/Hunter pivot to recruiter or hiring manager",
+      "status": "done",
+      "commit": "160c346",
+      "completed_at": "2026-05-28T03:11:34.548Z"
+    },
+    {
+      "id": "apply-agent.outreach.composer",
+      "agent": "apply-agent",
+      "tag": "APPLY",
+      "scope": "backend/agents/application/outreach_composer.py — personalized opener + value pitch + call to action",
+      "status": "done",
+      "commit": "160c346",
+      "completed_at": "2026-05-28T03:11:34.656Z"
+    },
+    {
+      "id": "apply-agent.auto-apply.greenhouse",
+      "agent": "apply-agent",
+      "tag": "APPLY",
+      "scope": "backend/agents/application/auto_apply.py Greenhouse path — uses ats_selectors.yaml for field mapping",
+      "status": "done",
+      "commit": "160c346",
+      "completed_at": "2026-05-28T03:11:34.763Z"
+    },
+    {
+      "id": "apply-agent.auto-apply.lever",
+      "agent": "apply-agent",
+      "tag": "APPLY",
+      "scope": "backend/agents/application/auto_apply.py Lever path — split single 'name' into first/last",
+      "status": "done",
+      "commit": "160c346",
+      "completed_at": "2026-05-28T03:11:34.873Z"
+    },
+    {
+      "id": "apply-agent.auto-apply.ashby",
+      "agent": "apply-agent",
+      "tag": "APPLY",
+      "scope": "backend/agents/application/auto_apply.py Ashby path — _systemfield_name combined-name handling",
+      "status": "done",
+      "commit": "160c346",
+      "completed_at": "2026-05-28T03:11:34.981Z"
+    },
+    {
+      "id": "apply-agent.auto-apply.workday",
+      "agent": "apply-agent",
+      "tag": "APPLY",
+      "scope": "backend/agents/application/auto_apply.py Workday path — multi-step continuation, account creation flow, file upload",
+      "status": "done",
+      "commit": "160c346",
+      "completed_at": "2026-05-28T03:11:35.091Z"
+    },
+    {
+      "id": "apply-agent.orchestrator",
+      "agent": "apply-agent",
+      "tag": "APPLY",
+      "scope": "backend/agents/application/orchestrator.py — ApplicationOrchestrator wires all sub-agents + Application state machine + agent.status.application pub/sub",
+      "status": "done",
+      "commit": "160c346",
+      "completed_at": "2026-05-28T03:11:35.199Z"
+    },
+    {
+      "id": "agents-agent.registry.defaults",
+      "agent": "agents-agent",
+      "tag": "AGENTS",
+      "scope": "backend/agents/manager/registry.py — default sub-agent registry mapping {discover, apply, score, compose} → handler",
+      "status": "done",
+      "commit": "a80f00a",
+      "completed_at": "2026-05-28T03:11:35.308Z"
+    },
+    {
+      "id": "agents-agent.runner.execute",
+      "agent": "agents-agent",
+      "tag": "AGENTS",
+      "scope": "backend/agents/manager/runner.py — Claude tool_use agentic loop, max-iter guard, structured result envelope",
+      "status": "done",
+      "commit": "a80f00a",
+      "completed_at": "2026-05-28T03:11:35.415Z"
+    },
+    {
+      "id": "agents-agent.runner.retry",
+      "agent": "agents-agent",
+      "tag": "AGENTS",
+      "scope": "backend/agents/manager/retry.py — exponential backoff retry policy with dead-letter logging on terminal failure",
+      "status": "done",
+      "commit": "a80f00a",
+      "completed_at": "2026-05-28T03:11:35.524Z"
+    },
+    {
+      "id": "agents-agent.dispatcher.pipeline",
+      "agent": "agents-agent",
+      "tag": "AGENTS",
+      "scope": "backend/agents/manager/dispatcher.py — multi-step pipeline orchestration across registered handlers",
+      "status": "done",
+      "commit": "a80f00a",
+      "completed_at": "2026-05-28T03:11:35.633Z"
+    },
+    {
+      "id": "api-agent.core.main",
+      "agent": "api-agent",
+      "tag": "API",
+      "scope": "backend/main.py — FastAPI app factory, router registration, lifespan (db + redis init)",
+      "status": "done",
+      "commit": "282406f",
+      "completed_at": "2026-05-28T03:11:35.741Z"
+    },
+    {
+      "id": "api-agent.core.config",
+      "agent": "api-agent",
+      "tag": "API",
+      "scope": "backend/config.py — Pydantic Settings, env loading, secret resolution",
+      "status": "done",
+      "commit": "282406f",
+      "completed_at": "2026-05-28T03:11:35.850Z"
+    },
+    {
+      "id": "api-agent.core.database",
+      "agent": "api-agent",
+      "tag": "API",
+      "scope": "backend/database.py — async SQLAlchemy engine, session factory, redis client factory, get_db dependency",
+      "status": "done",
+      "commit": "282406f",
+      "completed_at": "2026-05-28T03:11:35.963Z"
+    },
+    {
+      "id": "api-agent.routers.discovery",
+      "agent": "api-agent",
+      "tag": "API",
+      "scope": "backend/api/discovery.py — GET /digest/today, POST /discovery/run, GET /jobs/{id}",
+      "status": "done",
+      "commit": "282406f",
+      "completed_at": "2026-05-28T03:11:36.072Z"
+    },
+    {
+      "id": "api-agent.routers.application",
+      "agent": "api-agent",
+      "tag": "API",
+      "scope": "backend/api/application.py — POST /applications, GET /applications, POST /applications/{id}/approve, POST /applications/{id}/reject",
+      "status": "done",
+      "commit": "282406f",
+      "completed_at": "2026-05-28T03:11:36.181Z"
+    },
+    {
+      "id": "api-agent.routers.review",
+      "agent": "api-agent",
+      "tag": "API",
+      "scope": "backend/api/review.py — GET /review/queue, POST /review/{id}/decision",
+      "status": "done",
+      "commit": "282406f",
+      "completed_at": "2026-05-28T03:11:36.290Z"
+    },
+    {
+      "id": "api-agent.onboarding.resume-profile",
+      "agent": "api-agent",
+      "tag": "API",
+      "scope": "backend/api/onboarding.py — POST /onboarding/resume upload + profile build + initial archetype expansion",
+      "status": "done",
+      "commit": "282406f",
+      "completed_at": "2026-05-28T03:11:36.402Z"
+    },
+    {
+      "id": "api-agent.health.endpoint",
+      "agent": "api-agent",
+      "tag": "API",
+      "scope": "backend/api/health.py — GET /health, GET /readiness with db + redis probes",
+      "status": "done",
+      "commit": "282406f",
+      "completed_at": "2026-05-28T03:11:36.511Z"
+    },
+    {
+      "id": "frontend-agent.primitives.button",
+      "agent": "frontend-agent",
+      "tag": "FRONTEND",
+      "scope": "frontend/src/components/ui/Button.tsx — variant + size + loading state",
+      "status": "done",
+      "commit": "f4e3621",
+      "completed_at": "2026-05-28T03:11:36.620Z"
+    },
+    {
+      "id": "frontend-agent.primitives.input",
+      "agent": "frontend-agent",
+      "tag": "FRONTEND",
+      "scope": "frontend/src/components/ui/Input.tsx — labeled, error state, helper text",
+      "status": "done",
+      "commit": "f4e3621",
+      "completed_at": "2026-05-28T03:11:36.729Z"
+    },
+    {
+      "id": "frontend-agent.primitives.card",
+      "agent": "frontend-agent",
+      "tag": "FRONTEND",
+      "scope": "frontend/src/components/ui/Card.tsx — header/body/footer composition",
+      "status": "done",
+      "commit": "f4e3621",
+      "completed_at": "2026-05-28T03:11:36.838Z"
+    },
+    {
+      "id": "frontend-agent.primitives.dialog",
+      "agent": "frontend-agent",
+      "tag": "FRONTEND",
+      "scope": "frontend/src/components/ui/Dialog.tsx — accessible modal with backdrop + Escape close",
+      "status": "done",
+      "commit": "f4e3621",
+      "completed_at": "2026-05-28T03:11:36.946Z"
+    },
+    {
+      "id": "frontend-agent.layout.sidebar",
+      "agent": "frontend-agent",
+      "tag": "FRONTEND",
+      "scope": "frontend/src/layout/Sidebar.tsx — nav links, active state, brand seal",
+      "status": "done",
+      "commit": "f4e3621",
+      "completed_at": "2026-05-28T03:11:37.054Z"
+    },
+    {
+      "id": "frontend-agent.layout.dashboard",
+      "agent": "frontend-agent",
+      "tag": "FRONTEND",
+      "scope": "frontend/src/layout/DashboardLayout.tsx — sidebar + topbar + content slot + auth guard",
+      "status": "done",
+      "commit": "f4e3621",
+      "completed_at": "2026-05-28T03:11:37.162Z"
+    },
+    {
+      "id": "frontend-agent.auth-flow.login",
+      "agent": "frontend-agent",
+      "tag": "FRONTEND",
+      "scope": "frontend/src/pages/Login.tsx — magic-link request form",
+      "status": "done",
+      "commit": "f4e3621",
+      "completed_at": "2026-05-28T03:11:37.273Z"
+    },
+    {
+      "id": "frontend-agent.auth-flow.verify",
+      "agent": "frontend-agent",
+      "tag": "FRONTEND",
+      "scope": "frontend/src/pages/Verify.tsx — token-in-url handler, JWT storage, redirect",
+      "status": "done",
+      "commit": "f4e3621",
+      "completed_at": "2026-05-28T03:11:37.382Z"
+    },
+    {
+      "id": "frontend-agent.auth-flow.context",
+      "agent": "frontend-agent",
+      "tag": "FRONTEND",
+      "scope": "frontend/src/auth/AuthContext.tsx — provider, useAuth hook, refresh logic",
+      "status": "done",
+      "commit": "f4e3621",
+      "completed_at": "2026-05-28T03:11:37.491Z"
+    },
+    {
+      "id": "frontend-agent.onboarding.wizard",
+      "agent": "frontend-agent",
+      "tag": "FRONTEND",
+      "scope": "frontend/src/pages/Onboarding.tsx — resume upload → profile preview → confirmation",
+      "status": "done",
+      "commit": "f4e3621",
+      "completed_at": "2026-05-28T03:11:37.599Z"
+    },
+    {
+      "id": "frontend-agent.dashboard.overview",
+      "agent": "frontend-agent",
+      "tag": "FRONTEND",
+      "scope": "frontend/src/pages/Overview.tsx — today's digest, hot picks, agent activity",
+      "status": "done",
+      "commit": "f4e3621",
+      "completed_at": "2026-05-28T03:11:37.707Z"
+    },
+    {
+      "id": "frontend-agent.dashboard.pipeline",
+      "agent": "frontend-agent",
+      "tag": "FRONTEND",
+      "scope": "frontend/src/pages/Pipeline.tsx — kanban of applications across stages",
+      "status": "done",
+      "commit": "f4e3621",
+      "completed_at": "2026-05-28T03:11:37.817Z"
+    },
+    {
+      "id": "frontend-agent.dashboard.analytics",
+      "agent": "frontend-agent",
+      "tag": "FRONTEND",
+      "scope": "frontend/src/pages/Analytics.tsx — funnel, conversion, source breakdown",
+      "status": "done",
+      "commit": "f4e3621",
+      "completed_at": "2026-05-28T03:11:37.924Z"
+    },
+    {
+      "id": "frontend-agent.review-queue.list",
+      "agent": "frontend-agent",
+      "tag": "FRONTEND",
+      "scope": "frontend/src/pages/ReviewQueue.tsx — list of pending approvals with quick actions",
+      "status": "done",
+      "commit": "f4e3621",
+      "completed_at": "2026-05-28T03:11:38.034Z"
+    },
+    {
+      "id": "frontend-agent.review-queue.detail",
+      "agent": "frontend-agent",
+      "tag": "FRONTEND",
+      "scope": "frontend/src/pages/ReviewDetail.tsx — full artifact panes (JD, tailored resume, outreach, contact) + approve/reject",
+      "status": "done",
+      "commit": "f4e3621",
+      "completed_at": "2026-05-28T03:11:38.144Z"
+    },
+    {
+      "id": "discover-agent.identity.profiler",
+      "agent": "discover-agent",
+      "tag": "DISCOVER",
+      "scope": "backend/agents/discovery/identity_profiler.py — Claude-driven IdentityProfile builder + 24h Redis cache",
+      "status": "done",
+      "commit": "9acaa8e",
+      "completed_at": "2026-05-28T03:11:38.254Z"
+    },
+    {
+      "id": "discover-agent.archetype.generator",
+      "agent": "discover-agent",
+      "tag": "DISCOVER",
+      "scope": "backend/agents/discovery/archetype_generator.py — IdentityProfile → SearchManifest expansion with exclusions",
+      "status": "done",
+      "commit": "9acaa8e",
+      "completed_at": "2026-05-28T03:11:38.369Z"
+    },
+    {
+      "id": "discover-agent.crawler.greenhouse",
+      "agent": "discover-agent",
+      "tag": "DISCOVER",
+      "scope": "backend/agents/discovery/crawler_agent.py GreenhouseAdapter — httpx async, boards.greenhouse.io/{slug}.json",
+      "status": "done",
+      "commit": "9acaa8e",
+      "completed_at": "2026-05-28T03:11:38.479Z"
+    },
+    {
+      "id": "discover-agent.crawler.lever",
+      "agent": "discover-agent",
+      "tag": "DISCOVER",
+      "scope": "backend/agents/discovery/crawler_agent.py LeverAdapter — httpx async, api.lever.co/v0/postings/{slug}",
+      "status": "done",
+      "commit": "9acaa8e",
+      "completed_at": "2026-05-28T03:11:38.590Z"
+    },
+    {
+      "id": "discover-agent.crawler.ashby",
+      "agent": "discover-agent",
+      "tag": "DISCOVER",
+      "scope": "backend/agents/discovery/crawler_agent.py AshbyAdapter — httpx async, api.ashbyhq.com/posting-api/job-board/{slug}",
+      "status": "done",
+      "commit": "9acaa8e",
+      "completed_at": "2026-05-28T03:11:38.701Z"
+    },
+    {
+      "id": "discover-agent.crawler.workday",
+      "agent": "discover-agent",
+      "tag": "DISCOVER",
+      "scope": "backend/agents/discovery/crawler_agent.py WorkdayAdapter — playwright async, {tenant}.wd1.myworkdayjobs.com/{board}",
+      "status": "done",
+      "commit": "9acaa8e",
+      "completed_at": "2026-05-28T03:11:38.813Z"
+    },
+    {
+      "id": "discover-agent.scorer.relevance",
+      "agent": "discover-agent",
+      "tag": "DISCOVER",
+      "scope": "backend/agents/discovery/relevance_scorer.py — 6-dimension weighted scoring + is_hot threshold",
+      "status": "done",
+      "commit": "9acaa8e",
+      "completed_at": "2026-05-28T03:11:38.922Z"
+    },
+    {
+      "id": "discover-agent.digest.builder",
+      "agent": "discover-agent",
+      "tag": "DISCOVER",
+      "scope": "backend/agents/discovery/digest_builder.py — compile DailyDigest from scored jobs",
+      "status": "done",
+      "commit": "9acaa8e",
+      "completed_at": "2026-05-28T03:11:39.031Z"
+    },
+    {
+      "id": "discover-agent.orchestrator",
+      "agent": "discover-agent",
+      "tag": "DISCOVER",
+      "scope": "backend/agents/discovery/orchestrator.py — DiscoveryOrchestrator.run wires all 5 sub-agents + CrawlRun state + agent.status.discovery pub/sub",
+      "status": "done",
+      "commit": "9acaa8e",
+      "completed_at": "2026-05-28T03:11:39.139Z"
+    },
+    {
+      "id": "discover-agent.pubsub",
+      "agent": "discover-agent",
+      "tag": "DISCOVER",
+      "scope": "backend/agents/discovery/orchestrator.py _publish_status helper — emit events to agent.status.discovery channel per pattern from application/orchestrator.py",
+      "status": "done",
+      "commit": "9acaa8e",
+      "completed_at": "2026-05-28T03:11:39.248Z"
+    },
+    {
+      "id": "infra-agent.docker.backend",
+      "agent": "infra-agent",
+      "tag": "INFRA",
+      "scope": "backend/Dockerfile — python:3.12-slim, requirements caching, non-root user",
+      "status": "done",
+      "commit": "1f3fe1e",
+      "completed_at": "2026-05-28T03:11:39.357Z"
+    },
+    {
+      "id": "infra-agent.docker.frontend",
+      "agent": "infra-agent",
+      "tag": "INFRA",
+      "scope": "frontend/Dockerfile — node build stage + nginx serve stage",
+      "status": "done",
+      "commit": "1f3fe1e",
+      "completed_at": "2026-05-28T03:11:39.472Z"
+    },
+    {
+      "id": "infra-agent.docker.compose",
+      "agent": "infra-agent",
+      "tag": "INFRA",
+      "scope": "docker-compose.yml — postgres + redis + backend + frontend + celery-worker + celery-beat with healthchecks",
+      "status": "done",
+      "commit": "1f3fe1e",
+      "completed_at": "2026-05-28T03:11:39.581Z"
+    },
+    {
+      "id": "infra-agent.ecs.task-defs",
+      "agent": "infra-agent",
+      "tag": "INFRA",
+      "scope": "deploy/ecs-task-def-backend.json + ecs-task-def-frontend.json + ecs-task-def-celery-worker.json + ecs-task-def-celery-beat.json",
+      "status": "done",
+      "commit": "1f3fe1e",
+      "completed_at": "2026-05-28T03:11:39.691Z"
+    },
+    {
+      "id": "infra-agent.ecs.bootstrap",
+      "agent": "infra-agent",
+      "tag": "INFRA",
+      "scope": "deploy/setup-aws.sh — one-time VPC, ALB, ECR, ECS cluster, RDS, ElastiCache + Celery IAM role",
+      "status": "done",
+      "commit": "1f3fe1e",
+      "completed_at": "2026-05-28T03:11:39.800Z"
+    },
+    {
+      "id": "infra-agent.pipeline.digital-dash",
+      "agent": "infra-agent",
+      "tag": "INFRA",
+      "scope": "digital-dash-pipeline.yml — build, test, push, deploy stages with approval gate + deploy-celery stage",
+      "status": "done",
+      "commit": "1f3fe1e",
+      "completed_at": "2026-05-28T03:11:39.911Z"
+    },
+    {
+      "id": "scheduler-agent.app",
+      "agent": "scheduler-agent",
+      "tag": "SCHEDULER",
+      "scope": "backend/scheduler/celery_app.py — Celery app factory reading broker URL from settings.redis_url",
+      "status": "done",
+      "commit": "4381049",
+      "completed_at": "2026-05-28T03:11:16.313Z"
+    },
+    {
+      "id": "scheduler-agent.tasks",
+      "agent": "scheduler-agent",
+      "tag": "SCHEDULER",
+      "scope": "backend/scheduler/tasks.py — daily_discovery_task(candidate_id) wrapping async orchestrator.run",
+      "status": "done",
+      "commit": "a885e63",
+      "completed_at": "2026-05-28T03:11:16.433Z"
+    },
+    {
+      "id": "scheduler-agent.beat",
+      "agent": "scheduler-agent",
+      "tag": "SCHEDULER",
+      "scope": "backend/scheduler/beat.py — Beat schedule 07:00 America/New_York, iterates active candidates",
+      "status": "done",
+      "commit": "0774b1d",
+      "completed_at": "2026-05-28T03:11:16.554Z"
+    },
+    {
+      "id": "scheduler-agent.retry",
+      "agent": "scheduler-agent",
+      "tag": "SCHEDULER",
+      "scope": "backend/scheduler/tasks.py — exponential backoff 60s/300s/900s, dead-letter to crawl_runs.error_log",
+      "status": "done",
+      "commit": "a885e63",
+      "completed_at": "2026-05-28T03:11:48.408Z"
+    },
+    {
+      "id": "api-streaming-agent.events",
+      "agent": "api-streaming-agent",
+      "tag": "API-STREAMING",
+      "scope": "backend/api/events.py — GET /events/stream?channel=... SSE endpoint",
+      "status": "done",
+      "commit": "346c9a4",
+      "completed_at": "2026-05-28T03:11:16.673Z"
+    },
+    {
+      "id": "api-streaming-agent.subscriber",
+      "agent": "api-streaming-agent",
+      "tag": "API-STREAMING",
+      "scope": "backend/api/events.py — Redis pub/sub subscriber with channel allowlist",
+      "status": "done",
+      "commit": "ede01f0",
+      "completed_at": "2026-05-28T03:11:16.793Z"
+    },
+    {
+      "id": "api-streaming-agent.heartbeat",
+      "agent": "api-streaming-agent",
+      "tag": "API-STREAMING",
+      "scope": "backend/api/events.py — :ping every 15s for connection loss detection",
+      "status": "done",
+      "commit": "346c9a4",
+      "completed_at": "2026-05-28T03:11:48.520Z"
+    },
+    {
+      "id": "api-streaming-agent.backpressure",
+      "agent": "api-streaming-agent",
+      "tag": "API-STREAMING",
+      "scope": "backend/api/events.py — drop >100 messages behind, emit slow_client event",
+      "status": "done",
+      "commit": "ede01f0",
+      "completed_at": "2026-05-28T03:11:48.628Z"
+    },
+    {
+      "id": "api-client-agent.client",
+      "agent": "api-client-agent",
+      "tag": "API-CLIENT",
+      "scope": "frontend/src/api/client.ts — single apiClient instance, base URL from VITE_API_BASE_URL",
+      "status": "done",
+      "commit": "c082908",
+      "completed_at": "2026-05-28T03:11:16.911Z"
+    },
+    {
+      "id": "api-client-agent.auth",
+      "agent": "api-client-agent",
+      "tag": "API-CLIENT",
+      "scope": "frontend/src/api/auth.ts — requestMagicLink, verifyToken, refreshSession, JWT in localStorage",
+      "status": "done",
+      "commit": "3e9e8c9",
+      "completed_at": "2026-05-28T03:11:17.028Z"
+    },
+    {
+      "id": "api-client-agent.discovery",
+      "agent": "api-client-agent",
+      "tag": "API-CLIENT",
+      "scope": "frontend/src/api/discovery.ts — getTodayDigest, triggerDiscoveryRun, getJob",
+      "status": "done",
+      "commit": "7e4c32d",
+      "completed_at": "2026-05-28T03:11:17.143Z"
+    },
+    {
+      "id": "api-client-agent.applications",
+      "agent": "api-client-agent",
+      "tag": "API-CLIENT",
+      "scope": "frontend/src/api/applications.ts — listApplications, approveApplication, rejectApplication",
+      "status": "done",
+      "commit": "64e5518",
+      "completed_at": "2026-05-28T03:11:17.262Z"
+    },
+    {
+      "id": "api-client-agent.events",
+      "agent": "api-client-agent",
+      "tag": "API-CLIENT",
+      "scope": "frontend/src/api/events.ts — subscribeAgentStatus(channel, onMessage) via EventSource",
+      "status": "done",
+      "commit": "470f2e9",
+      "completed_at": "2026-05-28T03:11:17.379Z"
+    },
+    {
+      "id": "api-client-agent.error-handling",
+      "agent": "api-client-agent",
+      "tag": "API-CLIENT",
+      "scope": "frontend/src/api/client.ts — 401 → invalidate JWT, redirect to /login, toast",
+      "status": "done",
+      "commit": "2b08b21",
+      "completed_at": "2026-05-28T03:11:17.498Z"
+    },
+    {
+      "id": "api-client-agent.page-wiring",
+      "agent": "api-client-agent",
+      "tag": "API-CLIENT",
+      "scope": "Re-wire Overview.tsx, Pipeline.tsx, Analytics.tsx, ReviewQueue.tsx, ReviewDetail.tsx to use apiClient",
+      "status": "done",
+      "commit": "c05531f",
+      "completed_at": "2026-05-28T03:11:17.616Z"
+    },
+    {
+      "id": "tests-agent.discovery.pubsub",
+      "agent": "tests-agent",
+      "tag": "TESTS",
+      "scope": "tests/discovery/test_orchestrator_pubsub.py — fake Redis, verify 8+ event sequence",
+      "status": "done",
+      "commit": "19b5159",
+      "completed_at": "2026-05-28T03:11:17.733Z"
+    },
+    {
+      "id": "tests-agent.scheduler.daily",
+      "agent": "tests-agent",
+      "tag": "TESTS",
+      "scope": "tests/scheduler/test_daily_task.py — mock orchestrator, verify crawl_runs creation",
+      "status": "done",
+      "commit": "7bb1629",
+      "completed_at": "2026-05-28T03:11:17.853Z"
+    },
+    {
+      "id": "tests-agent.api.events",
+      "agent": "tests-agent",
+      "tag": "TESTS",
+      "scope": "tests/api/test_events_stream.py — TestClient streaming, verify SSE frames + heartbeat",
+      "status": "done",
+      "commit": "6c77c19",
+      "completed_at": "2026-05-28T03:11:17.972Z"
+    },
+    {
+      "id": "tests-agent.api.review",
+      "agent": "tests-agent",
+      "tag": "TESTS",
+      "scope": "tests/api/test_review_approve.py — full integration approve flow",
+      "status": "done",
+      "commit": "d067f15",
+      "completed_at": "2026-05-28T03:11:18.092Z"
+    },
+    {
+      "id": "tests-agent.frontend.client",
+      "agent": "tests-agent",
+      "tag": "TESTS",
+      "scope": "frontend/src/api/__tests__/client.test.ts — vitest, mock fetch, 401 handling",
+      "status": "done",
+      "commit": "d20f526",
+      "completed_at": "2026-05-28T03:11:18.211Z"
+    }
+  ]
+}
