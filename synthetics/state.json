@@ -1,0 +1,23 @@
+{
+  "greenhouse": {
+    "status": "green",
+    "consecutive_failures": 0,
+    "last_success": null,
+    "last_failure": null,
+    "last_error": null
+  },
+  "lever": {
+    "status": "green",
+    "consecutive_failures": 0,
+    "last_success": null,
+    "last_failure": null,
+    "last_error": null
+  },
+  "ashby": {
+    "status": "green",
+    "consecutive_failures": 0,
+    "last_success": null,
+    "last_failure": null,
+    "last_error": null
+  }
+}
