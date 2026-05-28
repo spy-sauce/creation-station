@@ -47,12 +47,31 @@ logger = structlog.get_logger(__name__)
 
 
 @dataclass
+class CacheMissEvent:
+    """
+    Records a cache miss event for the run report.
+
+    Per NUTRIENTS.md §I.5, if cache_creation_input_tokens > 0 on subsequent
+    runs, a cache_miss event is written to the report.
+    """
+
+    call_index: int
+    cache_creation_tokens: int
+    cache_read_tokens: int
+    timestamp: str
+
+
+@dataclass
 class CacheStats:
     """Tracks cache hit/miss statistics for Claude API calls."""
 
     total_calls: int = 0
     cache_creation_tokens: int = 0
     cache_read_tokens: int = 0
+
+    # For cache contract verification (NUTRIENTS.md §I.5)
+    is_subsequent_run: bool = False
+    cache_miss_events: list[CacheMissEvent] = field(default_factory=list)
 
     @property
     def cache_hits(self) -> int:
@@ -72,6 +91,19 @@ class CacheStats:
             return 0.0
         return self._hit_count / self.total_calls
 
+    @property
+    def cache_contract_violated(self) -> bool:
+        """
+        Check if cache contract was violated.
+
+        Per NUTRIENTS.md §I.5, on subsequent runs:
+            - cache_creation_input_tokens == 0 (MUST hit cache)
+            - cache_read_input_tokens > 0
+
+        Returns True if subsequent run had cache misses (creation tokens > 0).
+        """
+        return self.is_subsequent_run and len(self.cache_miss_events) > 0
+
     _hit_count: int = field(default=0, init=False)
 
     def record_call(
@@ -79,12 +111,35 @@ class CacheStats:
         cache_creation_input_tokens: int,
         cache_read_input_tokens: int,
     ) -> None:
-        """Record a Claude API call's cache statistics."""
+        """
+        Record a Claude API call's cache statistics.
+
+        Per NUTRIENTS.md §I.5, on subsequent runs if cache_creation_input_tokens > 0,
+        this constitutes a cache contract violation. We record it as a cache_miss event.
+        """
         self.total_calls += 1
         self.cache_creation_tokens += cache_creation_input_tokens
         self.cache_read_tokens += cache_read_input_tokens
         if cache_read_input_tokens > 0:
             self._hit_count += 1
+
+        # Cache contract verification for subsequent runs (NUTRIENTS.md §I.5)
+        # On subsequent runs, cache_creation_input_tokens MUST be 0
+        if self.is_subsequent_run and cache_creation_input_tokens > 0:
+            cache_miss = CacheMissEvent(
+                call_index=self.total_calls,
+                cache_creation_tokens=cache_creation_input_tokens,
+                cache_read_tokens=cache_read_input_tokens,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+            self.cache_miss_events.append(cache_miss)
+            logger.warning(
+                "cache_contract.violation",
+                call_index=self.total_calls,
+                cache_creation_tokens=cache_creation_input_tokens,
+                cache_read_tokens=cache_read_input_tokens,
+                message="Subsequent run should have cache_creation_input_tokens == 0",
+            )
 
 
 # ─── JD Fixture Loading ──────────────────────────────────────────────────────
@@ -388,7 +443,8 @@ class ScoringSyntheticRunner:
     2. Loads JD fixtures from synthetics/fixtures/jobs/
     3. For each candidate × JD pair, scores via RelevanceScorer
     4. Tracks cache hit/miss from Claude API responses
-    5. Returns structured results for fingerprinting
+    5. Verifies cache contract on subsequent runs (NUTRIENTS.md §I.5)
+    6. Returns structured results for fingerprinting
 
     Contract: NUTRIENTS.md §I.2-I.5, HYPHA-SYNTHETICS-SCORING.md
     """
@@ -399,6 +455,7 @@ class ScoringSyntheticRunner:
         redis_client: aioredis.Redis,
         anthropic_client: AsyncAnthropic,
         fixtures_dir: Optional[Path] = None,
+        is_subsequent_run: bool = False,
     ):
         """
         Initialize the ScoringSyntheticRunner.
@@ -408,10 +465,14 @@ class ScoringSyntheticRunner:
             redis_client: Async Redis client for caching
             anthropic_client: Async Anthropic client for Claude API
             fixtures_dir: Path to synthetics/fixtures/ (default: auto-detect)
+            is_subsequent_run: Whether this is a subsequent run (for cache verification)
+                Per NUTRIENTS.md §I.5, subsequent runs MUST have
+                cache_creation_input_tokens == 0 (hit cache)
         """
         self._session = session
         self._redis = redis_client
         self._anthropic = anthropic_client
+        self._is_subsequent_run = is_subsequent_run
 
         # Auto-detect fixtures directory if not provided
         if fixtures_dir is None:
@@ -473,7 +534,7 @@ class ScoringSyntheticRunner:
 
         # Process each candidate
         all_results: list[CandidateScoringResult] = []
-        overall_cache_stats = CacheStats()
+        overall_cache_stats = CacheStats(is_subsequent_run=self._is_subsequent_run)
 
         for candidate in candidates:
             result = await self._score_candidate(
@@ -486,6 +547,16 @@ class ScoringSyntheticRunner:
 
         completed_at = datetime.now(timezone.utc)
 
+        # Log cache contract verification result (NUTRIENTS.md §I.5)
+        if overall_cache_stats.cache_contract_violated:
+            logger.warning(
+                "scoring_runner.cache_contract_violated",
+                run_id=self._run_id,
+                is_subsequent_run=self._is_subsequent_run,
+                cache_miss_count=len(overall_cache_stats.cache_miss_events),
+                message="Cache contract violation: cache_creation_input_tokens > 0 on subsequent run",
+            )
+
         logger.info(
             "scoring_runner.suite_complete",
             run_id=self._run_id,
@@ -493,7 +564,20 @@ class ScoringSyntheticRunner:
             total_claude_calls=overall_cache_stats.total_calls,
             cache_hit_rate=round(overall_cache_stats.cache_hit_rate, 4),
             duration_seconds=(completed_at - started_at).total_seconds(),
+            is_subsequent_run=self._is_subsequent_run,
+            cache_contract_violated=overall_cache_stats.cache_contract_violated,
         )
+
+        # Build cache miss events for report (NUTRIENTS.md §I.5)
+        cache_miss_events_serialized = [
+            {
+                "call_index": event.call_index,
+                "cache_creation_tokens": event.cache_creation_tokens,
+                "cache_read_tokens": event.cache_read_tokens,
+                "timestamp": event.timestamp,
+            }
+            for event in overall_cache_stats.cache_miss_events
+        ]
 
         return {
             "run_id": self._run_id,
@@ -507,6 +591,12 @@ class ScoringSyntheticRunner:
                 "cache_hit_rate": round(overall_cache_stats.cache_hit_rate, 4),
                 "cache_creation_tokens": overall_cache_stats.cache_creation_tokens,
                 "cache_read_tokens": overall_cache_stats.cache_read_tokens,
+            },
+            # Cache contract verification (NUTRIENTS.md §I.5)
+            "cache_verification": {
+                "is_subsequent_run": self._is_subsequent_run,
+                "cache_contract_violated": overall_cache_stats.cache_contract_violated,
+                "cache_miss_events": cache_miss_events_serialized,
             },
         }
 
@@ -596,7 +686,7 @@ class ScoringSyntheticRunner:
 
         # Build identity profile first
         candidate_identity = self._build_candidate_identity_text(candidate)
-        cache_stats = CacheStats()
+        cache_stats = CacheStats(is_subsequent_run=self._is_subsequent_run)
 
         # Create cache-aware wrapper for this candidate
         cache_client = CacheAwareAnthropic(
@@ -641,6 +731,17 @@ class ScoringSyntheticRunner:
         overall_cache_stats.cache_creation_tokens += cache_stats.cache_creation_tokens
         overall_cache_stats.cache_read_tokens += cache_stats.cache_read_tokens
         overall_cache_stats._hit_count += cache_stats._hit_count
+        # Aggregate cache miss events for contract verification (NUTRIENTS.md §I.5)
+        overall_cache_stats.cache_miss_events.extend(cache_stats.cache_miss_events)
+
+        # Log cache contract violation at candidate level if detected
+        if cache_stats.cache_contract_violated:
+            logger.warning(
+                "scoring_runner.candidate_cache_violation",
+                candidate_id=str(candidate.id),
+                cache_miss_count=len(cache_stats.cache_miss_events),
+                is_subsequent_run=self._is_subsequent_run,
+            )
 
         logger.info(
             "scoring_runner.candidate_complete",
@@ -648,6 +749,7 @@ class ScoringSyntheticRunner:
             scored_count=len(scored_results),
             cache_calls=cache_stats.total_calls,
             cache_hit_rate=round(cache_stats.cache_hit_rate, 4),
+            cache_contract_violated=cache_stats.cache_contract_violated,
         )
 
         return CandidateScoringResult(
@@ -660,6 +762,9 @@ class ScoringSyntheticRunner:
                 "cache_hits": cache_stats.cache_hits,
                 "cache_misses": cache_stats.cache_misses,
                 "cache_hit_rate": round(cache_stats.cache_hit_rate, 4),
+                # Cache verification stats (NUTRIENTS.md §I.5)
+                "cache_contract_violated": cache_stats.cache_contract_violated,
+                "cache_miss_event_count": len(cache_stats.cache_miss_events),
             },
         )
 

@@ -2,13 +2,14 @@
 # Licensed under the Apache License, Version 2.0
 
 """
-CLI entry point for the synthetics scoring suite.
+CLI entry point for the synthetics monitoring suites.
 
-Provides the command-line interface for running synthetic drift detection:
+Provides the command-line interface for running synthetic monitoring:
 
     python -m backend.synthetics run --suite=scoring
+    python -m backend.synthetics run --suite=crawler
 
-The CLI:
+Scoring Suite (--suite=scoring):
     1. Loads synthetic candidates from the database
     2. Loads JD fixtures from synthetics/fixtures/jobs/
     3. Runs the scoring suite against each candidate × JD pair
@@ -16,8 +17,16 @@ The CLI:
     5. Writes a report to synthetics/runs/<ts>/scoring-report.json
     6. Publishes drift events if severity != green
 
-Contract: NUTRIENTS.md §I.2-I.7, HYPHA-SYNTHETICS-SCORING.md
-Owner: synthetics-scoring-agent.cli
+Crawler Suite (--suite=crawler):
+    1. Hits known-good slugs for Greenhouse, Lever, Ashby
+    2. Validates response schemas
+    3. Updates state machine in synthetics/state.json
+    4. Publishes alert on 3 consecutive failures (red status)
+    5. Publishes recovery when returning to green after red
+    6. Writes a report to synthetics/runs/<ts>/crawler-report.json
+
+Contract: NUTRIENTS.md §I.2-I.7, HYPHA-SYNTHETICS-SCORING.md, HYPHA-SYNTHETICS-CRAWLER.md
+Owner: synthetics-scoring-agent.cli, synthetics-crawler-agent.state-machine
 """
 
 from __future__ import annotations
@@ -304,6 +313,114 @@ async def run_scoring_suite(
         await engine.dispose()
 
 
+# ─── Crawler Suite Runner ─────────────────────────────────────────────────────
+
+
+async def run_crawler_suite(
+    output_dir: Optional[str] = None,
+    publish_events: bool = True,
+    verbose: bool = False,
+) -> int:
+    """
+    Execute the crawler health monitoring suite.
+
+    Flow:
+        1. Initialize Redis connection (optional, for pub/sub)
+        2. Create CrawlerHealthRunner
+        3. Run health checks against Greenhouse, Lever, Ashby
+        4. Update state machine in synthetics/state.json
+        5. Publish alert/recovery events on 3-strike threshold
+        6. Write crawler-report.json to output directory
+
+    The state machine tracks consecutive_failures per source:
+        - consecutive_failures < 3: status = 'green' (no alert)
+        - consecutive_failures >= 3: status = 'red', publish alert
+        - Success after failures: reset to 0, publish recovery if was red
+
+    Contract: NUTRIENTS.md §I.6, HYPHA-SYNTHETICS-CRAWLER.md
+    Owner: synthetics-crawler-agent.state-machine
+
+    Args:
+        output_dir: Custom output directory (default: synthetics/runs/<ts>/)
+        publish_events: Whether to publish alert/recovery events to Redis
+        verbose: Enable verbose logging
+
+    Returns:
+        Exit code: 0 for success, 1 for hard failure
+    """
+    import redis.asyncio as aioredis
+
+    from backend.config import settings
+    from backend.synthetics.crawler_health import CrawlerHealthRunner
+
+    logger.info(
+        "crawler_suite.starting",
+        publish_events=publish_events,
+        verbose=verbose,
+    )
+
+    # Initialize Redis for pub/sub (optional)
+    redis_client = None
+    if publish_events:
+        try:
+            redis_client = aioredis.from_url(
+                settings.redis_url,
+                encoding="utf-8",
+                decode_responses=True,
+            )
+            logger.debug("crawler_suite.redis_connected")
+        except Exception as e:
+            logger.warning(
+                "crawler_suite.redis_unavailable",
+                error=str(e),
+                message="Continuing without pub/sub",
+            )
+            redis_client = None
+
+    try:
+        # Create and run the health check suite
+        runner = CrawlerHealthRunner(redis_client=redis_client)
+        result = await runner.run_suite()
+
+        # Log summary
+        sources_checked = len(result.get("sources", []))
+        alerts_fired = sum(
+            1 for t in result.get("state_transitions", [])
+            if t.get("alert_fired", False)
+        )
+        all_green = all(
+            s.get("status") == "success"
+            for s in result.get("sources", [])
+        )
+
+        logger.info(
+            "crawler_suite.complete",
+            run_id=result.get("run_id"),
+            report_path=result.get("report_path"),
+            sources_checked=sources_checked,
+            alerts_fired=alerts_fired,
+            all_green=all_green,
+        )
+
+        return 0
+
+    except Exception as e:
+        logger.error(
+            "crawler_suite.failed",
+            error=str(e),
+            exc_info=True,
+        )
+        return 1
+
+    finally:
+        # Cleanup Redis connection
+        if redis_client is not None:
+            try:
+                await redis_client.aclose()
+            except Exception:
+                pass
+
+
 async def _publish_drift_event(
     redis_client,
     drift_report,
@@ -374,13 +491,13 @@ def main() -> int:
                 )
             )
         elif args.suite == "crawler":
-            # Crawler suite is owned by synthetics-crawler-agent
-            logger.error(
-                "cli.suite_not_implemented",
-                suite=args.suite,
-                message="Crawler suite is owned by synthetics-crawler-agent",
+            return asyncio.run(
+                run_crawler_suite(
+                    output_dir=args.output_dir,
+                    publish_events=not args.no_publish,
+                    verbose=args.verbose,
+                )
             )
-            return 1
         else:
             logger.error("cli.unknown_suite", suite=args.suite)
             return 1
