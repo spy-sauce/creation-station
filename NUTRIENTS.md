@@ -1396,17 +1396,41 @@ Section I defines the contract surface for synthetic monitoring. This contract i
 
 Synthetic candidates use UUIDv5 under a deterministic namespace. No schema changes. No `candidates.synthetic` boolean column.
 
-**Namespace:** `urn:talent-agent:synthetic:`
+**Namespace:** `uuid.NAMESPACE_DNS`
 **Derivation:** `uuid.uuid5(uuid.NAMESPACE_DNS, "synthetic-" + slug)`
 
-**Synthetic candidate IDs:**
-- `synthetic-jr-engineer` → `00000000-0000-5xxx-xxxx-xxxxxxxxxxxx` (computed at seeder runtime)
-- `synthetic-senior-ml` → `00000000-0000-5xxx-xxxx-xxxxxxxxxxxx` (computed at seeder runtime)
-- `synthetic-mid-product` → `00000000-0000-5xxx-xxxx-xxxxxxxxxxxx` (computed at seeder runtime)
+**Synthetic candidate IDs (frozen constants):**
+- `synthetic-jr-engineer` → `3c7eab85-c380-584b-a128-43bba592f163`
+- `synthetic-senior-ml` → `24fd155e-d431-5dd1-9a59-ee9b70c535a6`
+- `synthetic-mid-product` → `fb752ea7-1682-5cb8-84b9-b6402e8675a6`
 
-Detection: `WHERE id::text LIKE '00000000-%'` returns exactly 3 rows (all UUIDv5 markers).
+**Detection:** `backend.synthetics.known_ids.is_synthetic(id)` or SQL `WHERE id = ANY(:synthetic_ids)` bound from `SYNTHETIC_CANDIDATE_IDS`.
+
+**Source of truth:** `backend/synthetics/known_ids.py` contains:
+- `SYNTHETIC_CANDIDATE_IDS: dict[str, UUID]` — the canonical mapping
+- `SYNTHETIC_CANDIDATE_ID_SET: frozenset[UUID]` — for O(1) membership checks
+- `is_synthetic(candidate_id: UUID | str) -> bool` — the detection oracle
+
+### I.1.b Why Constants, Not Prefix
+
+**Iter-6 lesson:** UUIDv5 uses SHA-1 to hash the namespace + name. The first 8 hex characters of the resulting digest are **not** predictable — they are essentially random distributed. The iter-5 assumption that synthetic UUIDs would start with `00000000-` was factually wrong.
+
+**Empirical verification:**
+```
+synthetic-jr-engineer  -> 3c7eab85-c380-584b-a128-43bba592f163
+synthetic-senior-ml    -> 24fd155e-d431-5dd1-9a59-ee9b70c535a6
+synthetic-mid-product  -> fb752ea7-1682-5cb8-84b9-b6402e8675a6
+```
+
+None start with `00000000-`. The query `WHERE id::text LIKE '00000000-%'` returns **zero rows**.
+
+**Detection mechanism is separate from generation mechanism.** The UUIDs themselves are fine — deterministic, namespace-isolated, idempotent. Only the detection mechanism was wrong. The fix is to detect by membership in a known constant list, not by prefix.
+
+This lesson must outlive the bug: a brief that conflates detection with generation propagates the error everywhere the planner reads it.
 
 ### I.2 Drift Contract Fields
+
+**Known coverage gap (iter-6):** Workday Playwright path is not monitored by the synthetics infrastructure. The scoring suite uses local JD fixtures, never crawls Workday. An hourly Playwright invocation is too expensive for the synthetics budget (~$0.50/run × 24/day × 30 = $360/month would blow the $20/month cap by 18×). A different architecture — webhook-driven, sampled, or replay-based — is needed. Tracked for iter-8+.
 
 #### Exact-Match Fields (any difference = drift)
 
@@ -1455,7 +1479,7 @@ interface ExcludedFields {
   'crawl_run.duration_seconds': 'excluded';
   'crawl_run.started_at': 'excluded';
   'crawl_run.completed_at': 'excluded';
-  // All UUIDs except synthetic namespace (00000000-0000-5xxx-)
+  // All UUIDs not in SYNTHETIC_CANDIDATE_ID_SET (see §I.1)
   'non_synthetic_uuids': 'excluded';
 }
 ```
@@ -1601,6 +1625,9 @@ interface SyntheticsCrawlerEvent {
 | `CrawlerHealthRunner` | synthetics-crawler-agent | `backend/synthetics/crawler_health.py` |
 | `CrawlerHealthState` | synthetics-crawler-agent | `backend/synthetics/crawler_health.py` |
 | `synthetics_crawler_health_task` | synthetics-crawler-agent | `backend/synthetics/beat_schedule.py` |
+| `SYNTHETIC_CANDIDATE_IDS` | synthetics-fix-agent | `backend/synthetics/known_ids.py` |
+| `SYNTHETIC_CANDIDATE_ID_SET` | synthetics-fix-agent | `backend/synthetics/known_ids.py` |
+| `is_synthetic` | synthetics-fix-agent | `backend/synthetics/known_ids.py` |
 
 ### I.9 DATA_CONTRACTS (iter-5 additions)
 
