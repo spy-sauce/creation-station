@@ -1,0 +1,7 @@
+# Baseline fingerprints for synthetic candidate scoring runs.
+#
+# When a baseline is accepted via `mycelium synthetics baseline accept <run_id>`,
+# the fingerprint JSON is committed here and becomes the reference for drift detection.
+#
+# This file exists to ensure the directory is tracked by git while baseline
+# JSON files remain gitignored until explicitly accepted.

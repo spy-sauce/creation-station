@@ -1,0 +1,7 @@
+# Baseline fingerprint JSON files are gitignored by default.
+# Accept a baseline via `mycelium synthetics baseline accept <run_id>` to commit it.
+#
+# Once accepted, the baseline is tracked and becomes the drift reference.
+# Until then, intermediate run fingerprints stay local.
+
+*.json
