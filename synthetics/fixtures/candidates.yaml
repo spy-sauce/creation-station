@@ -7,8 +7,9 @@
 # pipeline daily. Each candidate has a unique UUIDv5 derived from:
 #   uuid.uuid5(uuid.NAMESPACE_DNS, "synthetic-{slug}")
 #
-# The UUID marker pattern 00000000-0000-5xxx- allows detection via SQL:
-#   SELECT * FROM candidates WHERE id::text LIKE '00000000-%'
+# UUIDv5 detection note: SHA-1 produces random first 8 hex chars, so prefix
+# matching (LIKE '00000000-%') fails. Detection uses membership in the frozen
+# constant list at backend/synthetics/known_ids.py (see NUTRIENTS.md §I.1.b).
 #
 # Contract: NUTRIENTS.md I.1, I.9
 
