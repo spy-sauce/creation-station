@@ -26,4 +26,7 @@ export default defineConfig([
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
   },
+  // TypeScript test files are handled by vitest's own linting
+  // Exclude them from the main eslint config
+  globalIgnores(['**/*.test.ts', '**/*.test.tsx', 'src/test/**']),
 ])
