@@ -79,6 +79,58 @@
     "tests-agent.api.review": {
       "fruitedAt": "2026-05-28T03:09:58.784Z",
       "branch": "feat/tests-agent.api.review"
+    },
+    "synthetics-fixtures-agent.baselines": {
+      "fruitedAt": "2026-05-28T03:39:20.208Z",
+      "branch": "feat/synthetics-fixtures-agent.baselines"
+    },
+    "synthetics-fixtures-agent.candidates": {
+      "fruitedAt": "2026-05-28T03:42:12.473Z",
+      "branch": "feat/synthetics-fixtures-agent.candidates"
+    },
+    "synthetics-scoring-agent.runner": {
+      "fruitedAt": "2026-05-28T03:43:26.556Z",
+      "branch": "feat/synthetics-scoring-agent.runner"
+    },
+    "synthetics-fixtures-agent.seeder": {
+      "fruitedAt": "2026-05-28T03:44:04.895Z",
+      "branch": "feat/synthetics-fixtures-agent.seeder"
+    },
+    "synthetics-fixtures-agent.jobs": {
+      "fruitedAt": "2026-05-28T03:45:15.918Z",
+      "branch": "feat/synthetics-fixtures-agent.jobs"
+    },
+    "synthetics-scoring-agent.fingerprint": {
+      "fruitedAt": "2026-05-28T03:45:28.257Z",
+      "branch": "feat/synthetics-scoring-agent.fingerprint"
+    },
+    "synthetics-scoring-agent.diff": {
+      "fruitedAt": "2026-05-28T03:46:37.472Z",
+      "branch": "feat/synthetics-scoring-agent.diff"
+    },
+    "synthetics-crawler-agent.schemas": {
+      "fruitedAt": "2026-05-28T03:47:57.812Z",
+      "branch": "feat/synthetics-crawler-agent.schemas"
+    },
+    "synthetics-scoring-agent.cli": {
+      "fruitedAt": "2026-05-28T03:49:07.971Z",
+      "branch": "feat/synthetics-scoring-agent.cli"
+    },
+    "synthetics-scoring-agent.cache-verification": {
+      "fruitedAt": "2026-05-28T03:50:33.613Z",
+      "branch": "feat/synthetics-scoring-agent.cache-verification"
+    },
+    "synthetics-crawler-agent.beat-extension": {
+      "fruitedAt": "2026-05-28T04:00:11.561Z",
+      "branch": "feat/synthetics-crawler-agent.beat-extension"
+    },
+    "synthetics-crawler-agent.state-machine": {
+      "fruitedAt": "2026-05-28T04:00:35.530Z",
+      "branch": "feat/synthetics-crawler-agent.state-machine"
+    },
+    "synthetics-crawler-agent.runner": {
+      "fruitedAt": "2026-05-28T04:13:09.483Z",
+      "branch": "feat/synthetics-crawler-agent.runner"
     }
   }
 }

@@ -58,67 +58,89 @@ organism:
       - infra-agent
     infra-agent: []
     tests-agent: []
+    synthetics-fixtures-agent:
+      - synthetics-scoring-agent
+      - synthetics-crawler-agent
+    synthetics-scoring-agent: []
+    synthetics-crawler-agent: []
     "*":
       - data-agent
       - design-agent
 contracts:
   - path: NUTRIENTS.md
     frozen: true
-    frozenAt: 2026-05-28T02:48:06.503Z
+    frozenAt: 2026-05-28T03:38:05.575Z
   - path: hyphae/HYPHA-SCHEMA-CORE.md
     frozen: true
-    frozenAt: 2026-05-28T02:48:06.503Z
+    frozenAt: 2026-05-28T03:38:05.575Z
   - path: hyphae/HYPHA-DATA.md
     frozen: true
-    frozenAt: 2026-05-28T02:48:06.503Z
+    frozenAt: 2026-05-28T03:38:05.575Z
   - path: hyphae/HYPHA-DESIGN-CORE.md
     frozen: true
-    frozenAt: 2026-05-28T02:48:06.503Z
+    frozenAt: 2026-05-28T03:38:05.575Z
   - path: hyphae/HYPHA-AUTH.md
     frozen: true
-    frozenAt: 2026-05-28T02:48:06.503Z
+    frozenAt: 2026-05-28T03:38:05.575Z
   - path: hyphae/HYPHA-OBSERVABILITY.md
     frozen: true
-    frozenAt: 2026-05-28T02:48:06.503Z
+    frozenAt: 2026-05-28T03:38:05.575Z
   - path: hyphae/HYPHA-DISCOVERY-ENGINE.md
     frozen: true
-    frozenAt: 2026-05-28T02:48:06.503Z
+    frozenAt: 2026-05-28T03:38:05.575Z
   - path: hyphae/HYPHA-APPLICATION-ENGINE.md
     frozen: true
-    frozenAt: 2026-05-28T02:48:06.503Z
+    frozenAt: 2026-05-28T03:38:05.575Z
   - path: hyphae/HYPHA-AGENT-MANAGER.md
     frozen: true
-    frozenAt: 2026-05-28T02:48:06.503Z
+    frozenAt: 2026-05-28T03:38:05.575Z
   - path: hyphae/HYPHA-API.md
     frozen: true
-    frozenAt: 2026-05-28T02:48:06.503Z
+    frozenAt: 2026-05-28T03:38:05.575Z
   - path: hyphae/HYPHA-API-SURFACE.md
     frozen: true
-    frozenAt: 2026-05-28T02:48:06.503Z
+    frozenAt: 2026-05-28T03:38:05.575Z
   - path: hyphae/HYPHA-FRONTEND.md
     frozen: true
-    frozenAt: 2026-05-28T02:48:06.503Z
+    frozenAt: 2026-05-28T03:38:05.575Z
   - path: hyphae/HYPHA-ONBOARDING.md
     frozen: true
-    frozenAt: 2026-05-28T02:48:06.503Z
+    frozenAt: 2026-05-28T03:38:05.575Z
   - path: hyphae/HYPHA-REVIEW-DASHBOARD.md
     frozen: true
-    frozenAt: 2026-05-28T02:48:06.503Z
+    frozenAt: 2026-05-28T03:38:05.575Z
   - path: hyphae/HYPHA-INFRA-DEPLOY.md
     frozen: true
-    frozenAt: 2026-05-28T02:48:06.503Z
+    frozenAt: 2026-05-28T03:38:05.575Z
   - path: hyphae/HYPHA-SCHEDULER.md
     frozen: true
-    frozenAt: 2026-05-28T02:48:06.503Z
+    frozenAt: 2026-05-28T03:38:05.575Z
   - path: hyphae/HYPHA-API-STREAMING.md
     frozen: true
-    frozenAt: 2026-05-28T02:48:06.503Z
+    frozenAt: 2026-05-28T03:38:05.575Z
   - path: hyphae/HYPHA-API-CLIENT.md
     frozen: true
-    frozenAt: 2026-05-28T02:48:06.503Z
+    frozenAt: 2026-05-28T03:38:05.575Z
   - path: hyphae/HYPHA-TESTS.md
     frozen: true
-    frozenAt: 2026-05-28T02:48:06.503Z
+    frozenAt: 2026-05-28T03:38:05.575Z
+  - path: hyphae/HYPHA-SYNTHETICS-FIXTURES.md
+    frozen: true
+    frozenAt: 2026-05-28T03:38:05.575Z
+  - path: hyphae/HYPHA-SYNTHETICS-SCORING.md
+    frozen: true
+    frozenAt: 2026-05-28T03:38:05.575Z
+  - path: hyphae/HYPHA-SYNTHETICS-CRAWLER.md
+    frozen: true
+    frozenAt: 2026-05-28T03:38:05.575Z
+synthetics:
+  budget:
+    monthlyUsd: 20
+    abort_threshold_pct: 150
+  cache:
+    aggressive: true
+    prompt_cache_required: true
+  target: local
 agents:
   - id: data-agent
     scope: PostgreSQL migrations, SQLAlchemy ORM models, Pydantic schemas, database
@@ -621,6 +643,82 @@ agents:
       - id: tests-agent.frontend.client
         scope: frontend/src/api/__tests__/client.test.ts — vitest, mock fetch, 401
           handling
+  - id: synthetics-fixtures-agent
+    scope: Synthetic candidate fixtures, JD fixtures, baseline scaffolding, seeder
+      for deterministic test data
+    branch: feat/synthetics-fixtures-agent
+    blocked_by: []
+    blocks:
+      - synthetics-scoring-agent
+      - synthetics-crawler-agent
+    capabilities:
+      - pydantic
+      - pyyaml
+      - uuid5
+    sub_agents:
+      - id: synthetics-fixtures-agent.candidates
+        scope: synthetics/fixtures/candidates.yaml — 3 synthetic candidates with full
+          resume text + identity context
+      - id: synthetics-fixtures-agent.jobs
+        scope: synthetics/fixtures/jobs/ — 12 JD markdown files with expected_hot +
+          expected_score_band frontmatter
+      - id: synthetics-fixtures-agent.baselines
+        scope: synthetics/fixtures/baselines/ — gitignored scaffold for baseline
+          fingerprints
+      - id: synthetics-fixtures-agent.seeder
+        scope: synthetics/fixtures/seeder.py — idempotent loader that upserts synthetic
+          candidates into Postgres on backend boot
+  - id: synthetics-scoring-agent
+    scope: Deterministic scoring drift detection via fingerprinting and diffing
+      against accepted baselines
+    branch: feat/synthetics-scoring-agent
+    blocked_by:
+      - synthetics-fixtures-agent
+    blocks: []
+    capabilities:
+      - anthropic-sdk
+      - pydantic
+      - structlog
+    sub_agents:
+      - id: synthetics-scoring-agent.runner
+        scope: backend/synthetics/scoring_runner.py — ScoringSyntheticRunner.run_suite()
+          iterates synthetic candidates × JDs
+      - id: synthetics-scoring-agent.fingerprint
+        scope: backend/synthetics/fingerprint.py — compute_fingerprint(digest, contract)
+          produces stable JSON per candidate
+      - id: synthetics-scoring-agent.diff
+        scope: backend/synthetics/diff.py — diff_against_baseline(fingerprint, baseline,
+          contract) returns DriftReport
+      - id: synthetics-scoring-agent.cli
+        scope: backend/synthetics/cli.py — python -m backend.synthetics run
+          --suite=scoring
+      - id: synthetics-scoring-agent.cache-verification
+        scope: backend/synthetics/scoring_runner.py — verify cache_creation_input_tokens
+          == 0 on subsequent runs
+  - id: synthetics-crawler-agent
+    scope: Upstream health monitoring with state machine alerts for consecutive
+      failures
+    branch: feat/synthetics-crawler-agent
+    blocked_by:
+      - synthetics-fixtures-agent
+    blocks: []
+    capabilities:
+      - httpx
+      - redis-pubsub
+      - structlog
+    sub_agents:
+      - id: synthetics-crawler-agent.runner
+        scope: backend/synthetics/crawler_health.py — CrawlerHealthRunner.run_suite()
+          hits known-good slugs per source
+      - id: synthetics-crawler-agent.schemas
+        scope: backend/synthetics/expected_schema_v1.json — expected top-level shape for
+          Greenhouse/Lever/Ashby
+      - id: synthetics-crawler-agent.state-machine
+        scope: synthetics/state.json — consecutive_failures tracking with 3-strike alert
+          threshold
+      - id: synthetics-crawler-agent.beat-extension
+        scope: backend/synthetics/beat_schedule.py — hourly Celery beat entry for
+          crawler health, registered additively
 merge_order:
   - data-agent
   - design-agent
@@ -636,6 +734,9 @@ merge_order:
   - api-client-agent
   - infra-agent
   - tests-agent
+  - synthetics-fixtures-agent
+  - synthetics-scoring-agent
+  - synthetics-crawler-agent
 timeline:
   parallel_phases:
     - hours: 0-1
@@ -688,5 +789,15 @@ timeline:
       active:
         - tests-agent
       description: Wave 9 — Test sweep across all iter-4 biomes.
+    - hours: 14-15
+      active:
+        - synthetics-fixtures-agent
+      description: Wave 10 — Fixtures land first. Synthetic candidates + JDs + seeder.
+    - hours: 15-17
+      active:
+        - synthetics-scoring-agent
+        - synthetics-crawler-agent
+      description: Wave 11 — Scoring + crawler health run in parallel, both consume
+        fixtures.
 budget:
   maxUsd: 100

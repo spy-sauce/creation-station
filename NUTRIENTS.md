@@ -1385,3 +1385,316 @@ export interface ApiClientConfig {
 
 **Frontend (package.json devDependencies):**
 - vitest>=1.0 — owner: tests-agent
+
+---
+
+## I. Synthetic Drift Contract
+
+Section I defines the contract surface for synthetic monitoring. This contract is frozen before any synthetics leaf builds. Without this contract, fingerprint leaves produce vague output and alert leaves fire on noise.
+
+### I.1 Synthetic Candidate Isolation
+
+Synthetic candidates use UUIDv5 under a deterministic namespace. No schema changes. No `candidates.synthetic` boolean column.
+
+**Namespace:** `urn:talent-agent:synthetic:`
+**Derivation:** `uuid.uuid5(uuid.NAMESPACE_DNS, "synthetic-" + slug)`
+
+**Synthetic candidate IDs:**
+- `synthetic-jr-engineer` → `00000000-0000-5xxx-xxxx-xxxxxxxxxxxx` (computed at seeder runtime)
+- `synthetic-senior-ml` → `00000000-0000-5xxx-xxxx-xxxxxxxxxxxx` (computed at seeder runtime)
+- `synthetic-mid-product` → `00000000-0000-5xxx-xxxx-xxxxxxxxxxxx` (computed at seeder runtime)
+
+Detection: `WHERE id::text LIKE '00000000-%'` returns exactly 3 rows (all UUIDv5 markers).
+
+### I.2 Drift Contract Fields
+
+#### Exact-Match Fields (any difference = drift)
+
+These fields MUST be byte-identical between runs. A single character difference is a drift violation.
+
+```typescript
+interface ExactMatchFields {
+  'digest.top_picks[0..4].job.id': string;      // First 5 top picks job IDs
+  'digest.top_picks[0..4].job.source': string;  // First 5 top picks sources
+  'digest.top_picks[0..4].job.url': string;     // First 5 top picks URLs
+  'digest.top_picks[0..4].ordering': number[];  // Ordering of first 5 picks
+}
+```
+
+#### Tolerance-Match Fields (±N% allowed)
+
+These numeric fields allow bounded variance. Exceeding the tolerance is a drift violation.
+
+```typescript
+interface ToleranceMatchFields {
+  // Score dimensions — all ±5%
+  'score.technical_match': { tolerance: 0.05 };
+  'score.level_match': { tolerance: 0.05 };
+  'score.culture_match': { tolerance: 0.05 };
+  'score.industry_match': { tolerance: 0.05 };
+  'score.growth_potential': { tolerance: 0.05 };
+  'score.compensation_match': { tolerance: 0.05 };
+
+  // Composite score — ±3%
+  'composite_score': { tolerance: 0.03 };
+
+  // Discovery count — ±10%
+  'total_jobs_discovered': { tolerance: 0.10 };
+}
+```
+
+#### Excluded Fields (never compared)
+
+These fields are inherently non-deterministic and excluded from all drift comparisons.
+
+```typescript
+interface ExcludedFields {
+  'created_at': 'excluded';
+  'updated_at': 'excluded';
+  'run_id': 'excluded';
+  'crawl_run.duration_seconds': 'excluded';
+  'crawl_run.started_at': 'excluded';
+  'crawl_run.completed_at': 'excluded';
+  // All UUIDs except synthetic namespace (00000000-0000-5xxx-)
+  'non_synthetic_uuids': 'excluded';
+}
+```
+
+### I.3 Baseline Management
+
+**Baseline reset rules:**
+1. Baselines are explicit. A new baseline is written ONLY by `mycelium synthetics baseline accept <run_id>`.
+2. Drift comparisons are against the latest accepted baseline only.
+3. Baseline files live at `synthetics/fixtures/baselines/<candidate_id>__<run_id>.json`.
+4. The `synthetics/fixtures/baselines/` directory is gitignored initially.
+5. Once a baseline is accepted, it is committed and becomes the reference.
+
+**Baseline file format:**
+
+```typescript
+interface BaselineFile {
+  candidate_id: string;        // Synthetic UUID
+  run_id: string;              // UUID of the run that produced this baseline
+  accepted_at: string;         // ISO-8601 timestamp
+  fingerprint: ScoringFingerprint;
+}
+```
+
+### I.4 Drift Report Format
+
+```typescript
+type DriftSeverity = 'green' | 'yellow' | 'red';
+
+interface DriftViolation {
+  field: string;
+  baseline_value: unknown;
+  current_value: unknown;
+  delta_pct?: number;        // For tolerance fields
+}
+
+interface DriftReport {
+  candidate_id: string;
+  run_id: string;
+  baseline_run_id: string;
+  exact_violations: DriftViolation[];
+  tolerance_violations: DriftViolation[];
+  severity: DriftSeverity;
+  computed_at: string;       // ISO-8601
+}
+
+// Severity rules:
+// - green: zero violations
+// - yellow: tolerance violations only, no exact-match violations
+// - red: any exact-match violation OR tolerance violation > 2× threshold
+```
+
+### I.5 Cache Contract
+
+Every Claude API call in the synthetics scoring suite MUST:
+1. Set `cache_control={"type": "ephemeral"}` on the system prompt
+2. Set `cache_control={"type": "ephemeral"}` on the candidate identity block
+
+**Verification on subsequent runs:**
+- First run: primes the cache (`cache_creation_input_tokens > 0`)
+- Subsequent runs: MUST hit cache (`cache_creation_input_tokens == 0`, `cache_read_input_tokens > 0`)
+
+If cache verification fails:
+1. Write a `cache_miss` event to the run report
+2. Continue execution (do not abort)
+3. Log loudly at WARN level
+4. The run is considered unhealthy but not failed
+
+**Target economics:**
+- First run: ~$4.32/day (108 Claude calls × $0.04)
+- Subsequent runs: ~$0.43/day (90% cache discount)
+- Monthly target: ~$13/month
+- Monthly ceiling: $20/month (abort if projected burn exceeds $30)
+
+### I.6 Crawler Health Contract
+
+#### Health check targets
+
+| Source | Slug | Endpoint | Expected shape |
+|---|---|---|---|
+| Greenhouse | `anthropic` | `boards.greenhouse.io/anthropic.json` | `{jobs: [...]}` |
+| Lever | `netflix` | `api.lever.co/v0/postings/netflix` | `[{id, text, ...}, ...]` |
+| Ashby | `posthog` | `api.ashbyhq.com/posting-api/job-board/posthog` | `{jobs: [...]}` |
+
+Workday is NOT in hourly health checks — Playwright is too expensive. Workday is exercised daily via the scoring suite.
+
+#### State machine
+
+```typescript
+interface CrawlerHealthState {
+  source: 'greenhouse' | 'lever' | 'ashby';
+  status: 'green' | 'yellow' | 'red';
+  consecutive_failures: number;  // 0-3+
+  last_success: string | null;   // ISO-8601
+  last_failure: string | null;   // ISO-8601
+  last_error: string | null;     // Error message
+}
+```
+
+**Transition rules:**
+- `consecutive_failures < 3`: status = `green` (no alert)
+- `consecutive_failures >= 3`: status = `red`, publish `agent.status.synthetics.crawler` event
+- On success after failures: reset `consecutive_failures` to 0, publish recovery event
+
+**Cadence:**
+- Hourly via Celery beat (additive entry, does not modify `daily_discovery_task`)
+
+### I.7 Synthetics Event Channels
+
+```typescript
+// New Redis pub/sub channels for synthetics
+type SyntheticsChannel =
+  | 'agent.status.synthetics.drift'       // Scoring drift detected
+  | 'agent.status.synthetics.crawler';    // Crawler health alert/recovery
+
+interface SyntheticsDriftEvent {
+  candidate_id: string;
+  run_id: string;
+  severity: DriftSeverity;
+  violation_count: number;
+  ts: string;  // ISO-8601
+}
+
+interface SyntheticsCrawlerEvent {
+  source: 'greenhouse' | 'lever' | 'ashby';
+  status: 'red' | 'green';  // red = alert, green = recovery
+  consecutive_failures: number;
+  ts: string;  // ISO-8601
+}
+```
+
+### I.8 Symbol Ownership Matrix (iter-5 additions)
+
+| Symbol | Owner biome | File path |
+|---|---|---|
+| `SyntheticCandidate` | synthetics-fixtures-agent | `synthetics/fixtures/candidates.yaml` |
+| `seed()` | synthetics-fixtures-agent | `synthetics/fixtures/seeder.py` |
+| `ScoringSyntheticRunner` | synthetics-scoring-agent | `backend/synthetics/scoring_runner.py` |
+| `compute_fingerprint` | synthetics-scoring-agent | `backend/synthetics/fingerprint.py` |
+| `diff_against_baseline` | synthetics-scoring-agent | `backend/synthetics/diff.py` |
+| `ScoringFingerprint` | synthetics-scoring-agent | `backend/synthetics/fingerprint.py` |
+| `DriftReport` | synthetics-scoring-agent | `backend/synthetics/diff.py` |
+| `CrawlerHealthRunner` | synthetics-crawler-agent | `backend/synthetics/crawler_health.py` |
+| `CrawlerHealthState` | synthetics-crawler-agent | `backend/synthetics/crawler_health.py` |
+| `synthetics_crawler_health_task` | synthetics-crawler-agent | `backend/synthetics/beat_schedule.py` |
+
+### I.9 DATA_CONTRACTS (iter-5 additions)
+
+```typescript
+// === Synthetics Fixtures Domain ===
+
+export interface SyntheticCandidateFixture {
+  slug: 'synthetic-jr-engineer' | 'synthetic-senior-ml' | 'synthetic-mid-product';
+  name: string;
+  email: string;  // Fake email for test purposes
+  resume_text: string;  // Full resume markdown
+  identity_context: {
+    location: string;
+    target_salary_min: number;
+    target_salary_max: number;
+    remote_preference: RemotePreference;
+    experience_years: number;
+    leadership_level: string;
+  };
+}
+
+export interface SyntheticJobFixture {
+  filename: string;  // e.g., "jr-01-strong-match.md"
+  expected_hot: boolean;
+  expected_score_band: 'low' | 'mid' | 'high';
+  source: JobSource;
+  target_candidate: 'synthetic-jr-engineer' | 'synthetic-senior-ml' | 'synthetic-mid-product';
+}
+
+// === Synthetics Scoring Domain ===
+
+export interface ScoringFingerprint {
+  candidate_id: string;  // Synthetic UUID
+  run_id: string;
+  computed_at: string;   // ISO-8601
+  exact_fields: {
+    top_picks: Array<{
+      job_id: string;
+      source: JobSource;
+      url: string;
+      position: number;
+    }>;
+  };
+  tolerance_fields: {
+    technical_match: { value: number; baseline: number | null; drift_pct: number | null };
+    level_match: { value: number; baseline: number | null; drift_pct: number | null };
+    culture_match: { value: number; baseline: number | null; drift_pct: number | null };
+    industry_match: { value: number; baseline: number | null; drift_pct: number | null };
+    growth_potential: { value: number; baseline: number | null; drift_pct: number | null };
+    compensation_match: { value: number; baseline: number | null; drift_pct: number | null };
+    composite_score: { value: number; baseline: number | null; drift_pct: number | null };
+    total_jobs_discovered: { value: number; baseline: number | null; drift_pct: number | null };
+  };
+}
+
+export interface ScoringRunReport {
+  run_id: string;
+  suite: 'scoring';
+  started_at: string;    // ISO-8601
+  completed_at: string;  // ISO-8601
+  candidates: Array<{
+    candidate_id: string;
+    fingerprint: ScoringFingerprint;
+    drift_report: DriftReport | null;  // null if no baseline
+    cache_stats: {
+      total_calls: number;
+      cache_hits: number;
+      cache_misses: number;
+      cache_hit_rate: number;  // 0.0-1.0
+    };
+  }>;
+  overall_status: DriftSeverity;
+}
+
+// === Synthetics Crawler Domain ===
+
+export interface CrawlerHealthReport {
+  run_id: string;
+  suite: 'crawler';
+  started_at: string;    // ISO-8601
+  completed_at: string;  // ISO-8601
+  sources: Array<{
+    source: 'greenhouse' | 'lever' | 'ashby';
+    status: 'success' | 'failed';
+    latency_ms: number;
+    schema_match: boolean;
+    sample_jobs: number;
+    error: string | null;
+  }>;
+  state_transitions: Array<{
+    source: 'greenhouse' | 'lever' | 'ashby';
+    previous_state: CrawlerHealthState;
+    new_state: CrawlerHealthState;
+    alert_fired: boolean;
+  }>;
+}
+```

@@ -1,169 +1,169 @@
-# Talent Agent — Cultivation Brief (Iteration 4 — End-to-End Loop)
+# Talent Agent — Cultivation Brief (Iteration 5 — Synthetic Monitoring)
 
-> Input to `mycelium cultivate`. Iter-3.5 shipped real Greenhouse/Lever/Ashby/Workday crawler adapters and `ats_selectors.yaml`. This iteration closes the loop: the orchestrator publishes status, the dashboard reads it, and a single command takes a real candidate through Discovery → Review → Apply.
+> Input to `mycelium cultivate`. Iter-4 shipped the end-to-end loop (Celery beat, SSE stream, frontend apiClient, full test sweep — 20/20 FRUIT_READY · 100% organism health · pushed to origin/main). Now we make the system observe itself in production via a synthetic monitoring harness.
 >
-> Read `CLAUDE.md` (project), `NUTRIENTS.md` (frozen contracts), `CELLULAR-MAP.md`, and `hyphae/HYPHA-*.md` before acting. Mycelium framework spec: this organism runs **cellular: true · gating: contract-freeze · max_depth: 3**. Specialists consume frozen HYPHA stubs, not upstream live code. Integration happens at merge time via `merge_order` in `mycelium.yaml`.
+> Read `CLAUDE.md`, `NUTRIENTS.md`, `CELLULAR-MAP.md`, and `hyphae/HYPHA-*.md` before acting. This organism runs **cellular: true · gating: contract-freeze · max_depth: 3**. Specialists consume frozen HYPHA stubs, not upstream live code. Iter-4's 14 biomes are frozen.
 
 ---
 
 ## What we're building
 
-End-to-end loop validation for a single candidate (Sean Young). Today the pipeline has all 10 biomes shipped and the crawler is real, but five seams are still loose:
+A **synthetic monitoring biome** that exercises the live Discovery → Score → Apply pipeline daily with known-input synthetic candidates, fingerprints the output, and alerts on drift. Synthetics are the analyzation tool: the only honest way to detect crawler regression, scoring drift, or prompt drift in a system whose real candidates are personal and non-reproducible.
 
-1. **Discovery orchestrator** never publishes on `agent.status.discovery` (HYPHA-DISCOVERY-ENGINE §Notes line 76 explicitly flags this gap; the helper `_publish_status` is referenced but unimplemented in `backend/agents/discovery/orchestrator.py`).
-2. **Celery beat** is in the stack but never wired (HYPHA-DISCOVERY-ENGINE §Out of Scope flagged it). Daily 7am cron must trigger `DiscoveryOrchestrator.run(candidate_id)` for every active candidate.
-3. **Frontend** has primitives + pages but no `apiClient` wired to the FastAPI surface. Pages render mock data.
-4. **Review queue** detail panel renders applications but the approve/reject path doesn't call `POST /applications/{id}/approve` end-to-end.
-5. **infra-agent** is still flat (CELLULAR-MAP "What's Next" #1 flagged this). Decompose into docker/ecs/pipeline leaves so a future infra change cultivates surgically.
+The brief from legendary-funicular's MYC 2026-05-10 entry called this out as iter-4-or-later work: *"Mycelium has zero formal reliability data today."* This is that.
 
 ## Core goal
 
-Run `python -m backend.cli loop --candidate sean-young` and watch the system go from a resume PDF on disk to a tailored email draft awaiting human approval in the Review Queue UI — with structured logs and pub/sub events at every stage. **The recursive build worked when audit-run audited the framework itself.** This iteration validates the same loop closure on the real product surface.
+Run `mycelium synthetics run --suite=daily` and produce a `synthetics/runs/<ts>/report.json` containing: (a) per-candidate digest fingerprint diff vs the last green baseline, (b) per-source crawler health (HTTP, schema-shape, sample-job-count), (c) per-scorer-dimension score-distribution percentiles vs baseline. If any drift exceeds the contract thresholds, fire `agent.status.synthetics.drift` on Redis pub/sub and write a markdown report.
 
-## Stack canon
+**Two failure modes the synthetic harness must surface that iter-4 cannot:**
+1. **Scoring drift** — same input, different score. Catches Claude version bumps, prompt edits, archetype-generator regressions.
+2. **Crawler regression** — upstream API schema change, rate-limit policy shift, or selector breakage in Workday/Playwright path.
 
-Same as iter-3.5 (canonical override block below). The repo uses `--stack nextjs-fastapi-supabase` as a label only — the real stack is:
+## Six design calls (locked — do not delegate)
 
-- Backend: FastAPI · Python 3.12 · Pydantic v2 · SQLAlchemy 2.0 async · Alembic · httpx · Playwright async · Celery
-- DB: raw PostgreSQL 15 (NOT Supabase) · Redis 7 (cache + pub/sub + Celery broker)
-- Frontend: React 19 · Vite 8 · Tailwind · react-router-dom · lucide-react
-- No Next.js, no Supabase, no httpOnly cookies, no RLS, no NEXT_PUBLIC_ env vars
+These are decided up front so the planner cannot pick wrong:
 
----
+### 1. Synthetic isolation via UUID namespace — no schema changes
 
-## Organisms (biomes in scope)
+Synthetic candidates use `candidate_id` UUIDs deterministically derived from a known seed string under namespace `urn:talent-agent:synthetic:`. Concretely: `uuid5(NAMESPACE_DNS, "synthetic-" + slug)`. Every synthetic `candidate_id` has high-bit pattern `00000000-0000-5xxx-...` (UUIDv5 marker) AND falls under the seed namespace, making them detectable without a schema column. **No new migration. No `candidates.synthetic` boolean. data-agent stays frozen.** Existing queries `WHERE id = ?` still work; analysis queries can `WHERE id::text LIKE '00000000-%'`.
 
-Five biomes are in scope. **Do not touch** `data-agent`, `design-agent`, `auth-agent`, `agents-agent` — they are frozen and integration tested. The crawler internals from iter-3.5 are also frozen — only `discover-agent.orchestrator` changes.
+### 2. Drift contract lives in NUTRIENTS — frozen before any leaf builds
 
-### discover-agent — close the pub/sub gap
+A new section `§I — Synthetic Drift Contract` defines:
+- **Exact-match fields** (any difference = drift): `digest.top_picks[].job.id`, `digest.top_picks[].job.source`, `digest.top_picks[].job.url`, ordering of `top_picks` first 5
+- **Tolerance-match fields** (±N% allowed): each of 6 score dimensions ±5%, composite_score ±3%, `total_jobs_discovered` ±10%
+- **Excluded fields** (never compared): `created_at`, `updated_at`, `run_id`, `crawl_run.duration_seconds`, all UUIDs that aren't synthetic-namespace
+- **Baseline reset rules**: explicit `mycelium synthetics baseline accept <run_id>` writes a new fingerprint; drift compares against latest accepted baseline only
 
-The orchestrator already calls every sub-agent correctly. What's missing: every `await self._publish_status(...)` call refers to a helper that doesn't exist. The HYPHA explicitly says to follow the pattern from `application/orchestrator.py:325-336`.
+Without this in a frozen contract, the fingerprint leaf produces vague output and the alert leaf fires on noise.
 
-**Hard requirements:**
+### 3. Split scoring-drift from crawler-health — different biomes, different cadence
 
-- Implement `DiscoveryOrchestrator._publish_status(candidate_id, event_name)` that publishes to Redis channel `agent.status.discovery` with payload `{candidate_id, event, ts}` (ISO-8601 UTC).
-- Delete the stale `# 4. Crawl (currently stubbed — Phase 1B)` comment at `backend/agents/discovery/orchestrator.py:128`. The crawler is real now (iter-3.5 commits `7f4d514`, `b140392`). Replace with `# 4. Crawl across all four sources`.
-- The `score_with_semaphore` wrapper at orchestrator.py ~line 122 is defined but unused (HYPHA-DISCOVERY-ENGINE §Notes confirms this was intentional). **Leave it alone.** Do not refactor. Annotate with `# noqa: F841 — reserved for per-job-scoring path` if ruff complains.
-- Emit `CRAWL_SOURCE_COMPLETE` events with `{source, jobs_found}` per adapter, not just the rollup `CRAWL_COMPLETE`. This lets the dashboard show per-source progress during a multi-minute run.
+These look adjacent but have orthogonal failure modes:
 
-**Acceptance:**
+| Biome | Inputs | Cadence | Alert threshold |
+|---|---|---|---|
+| `synthetics-scoring` | 12 local JD fixtures, 3 synthetic candidates | Daily 03:00 ET | Any exact-match drift OR tolerance breach |
+| `synthetics-crawler` | Real upstream APIs (Greenhouse/Lever/Ashby head only, no Workday) | Hourly | 3 consecutive failures OR schema shape change |
 
-- `redis-cli SUBSCRIBE agent.status.discovery` shows ≥ 8 events for a single `run(candidate_id)` invocation: `RUN_STARTED, CANDIDATE_LOADED, PROFILE_BUILT, MANIFEST_BUILT, CRAWL_SOURCE_COMPLETE×4, CRAWL_COMPLETE, SCORING_COMPLETE, RUN_COMPLETE`.
-- `pytest tests/discovery/test_orchestrator_pubsub.py -v` passes (new — see Tests biome).
+Scoring is deterministic given fixed JDs + fixed prompt + fixed candidate → fingerprints are reproducible. Crawler health is inherently flaky (rate limits, transient 5xx) → different threshold logic. **Bundling them = the alert dashboard becomes noise within a week.**
 
-### scheduler-agent (NEW biome) — Celery beat wiring
+### 4. Recurring monthly budget — aggressive cache, deterministic inputs
 
-A new top-level biome. `data-agent`, `obs-agent`, and `discover-agent` must be frozen before it germinates.
+Iter-4 was $7-10 once. Synthetics is `3 candidates × 12 JDs × scorer Claude calls × daily = ~108 Claude calls/day`. At ~$0.04/call that's $4.32/day = **~$130/month uncached**. With cache: synthetic inputs are byte-identical day over day, so every call after run 1 should be a prompt-cache hit (~90% discount) → target $13/month.
 
-**Hard requirements:**
+The mycelium.yaml gains:
+```yaml
+synthetics:
+  budget:
+    monthlyUsd: 20
+    abort_threshold_pct: 150   # halt suite if monthly burn projects > $30
+  cache:
+    aggressive: true
+    prompt_cache_required: true  # first run warms cache, subsequent runs MUST hit it
+```
 
-- `backend/scheduler/celery_app.py` — Celery app factory reading broker URL from `settings.redis_url`.
-- `backend/scheduler/tasks.py` — `daily_discovery_task(candidate_id)` that constructs a fresh DB session + Redis client and invokes `DiscoveryOrchestrator.run(candidate_id)`. Wrap the async call with `asyncio.run(...)` since Celery workers are sync.
-- `backend/scheduler/beat.py` — Beat schedule: 07:00 America/New_York every day, iterates active candidates, enqueues one task per candidate with a per-candidate `task_id` (idempotent if the worker re-fires).
-- `docker-compose.yml` gains two services: `celery-worker` and `celery-beat`, both reading the same env as the backend.
-- On task failure, exponential backoff: 3 retries at 60s/300s/900s, then dead-letter into the `crawl_runs` row's `error_log` column and publish `agent.status.discovery` event `DAILY_TASK_DEAD`.
+If a leaf cannot use the prompt cache (Claude API direct calls, no cache_control), it's a contract violation, not an optimization opportunity.
 
-**Acceptance:**
+### 5. Local-first — synthetics monitor docker-compose, not "prod"
 
-- `celery -A backend.scheduler.celery_app beat --loglevel=info` starts without import errors.
-- `celery -A backend.scheduler.celery_app inspect scheduled` shows the daily task registered.
-- Manual trigger `celery -A backend.scheduler.celery_app call backend.scheduler.tasks.daily_discovery_task --args='["<uuid>"]'` produces a `daily_digests` row.
-- A simulated worker crash mid-run leaves the `crawl_runs` row in `FAILED` with the traceback in `error_log`, NOT `RUNNING` (this exercises HYPHA-DISCOVERY-ENGINE acceptance criterion line 56).
+iter-4 shipped ECS task defs but `deploy/setup-aws.sh` never ran. There is no production deployment. The brief is honest: synthetic monitoring runs against `docker-compose up`'d backend on localhost first.
 
-### api-client-agent (NEW biome) — frontend API wiring
+A `synthetics.target` field in mycelium.yaml selects: `local` (default, against http://localhost:8000) or `remote` (against `SYNTHETICS_TARGET_URL` env var). The remote path is built but not exercised this iteration. When `setup-aws.sh` runs in a later iteration, synthetics flips its target with one env var. **Zero code changes between local and remote.**
 
-`api-agent` and `frontend-agent` must be frozen before it germinates.
+### 6. audit-run does NOT host this
 
-**Hard requirements:**
-
-- `frontend/src/api/client.ts` — single `apiClient` instance built on `fetch`. Reads base URL from `import.meta.env.VITE_API_BASE_URL` (no `NEXT_PUBLIC_` — this is Vite).
-- `frontend/src/api/auth.ts` — `requestMagicLink(email)`, `verifyToken(token)`, `refreshSession()`. Stores JWT in `localStorage` under key `talent-agent-jwt`. Every request injects `Authorization: Bearer ${jwt}`.
-- `frontend/src/api/discovery.ts` — `getTodayDigest()`, `triggerDiscoveryRun()`, `getJob(id)`.
-- `frontend/src/api/applications.ts` — `listApplications()`, `approveApplication(id)`, `rejectApplication(id, reason)`.
-- `frontend/src/api/events.ts` — `subscribeAgentStatus(channel, onMessage)` — opens an EventSource to `GET /events/stream?channel=agent.status.discovery` (new endpoint on api-agent — see api-streaming-agent biome below).
-- On 401, the client invalidates the JWT, redirects to `/login`, and surfaces a toast.
-- All `fetch` calls catch network errors and surface a `TalentAgentApiError` with `{status, code, message}` so pages can render error states.
-- Existing `frontend/src/pages/Overview.tsx`, `Pipeline.tsx`, `Analytics.tsx`, `ReviewQueue.tsx`, `ReviewDetail.tsx` must be re-wired to call the client instead of mock data. **Preserve their existing layout and styling exactly.**
-
-**Acceptance:**
-
-- `npm run typecheck` clean.
-- Opening the frontend with the backend running shows real digest data, not mocks.
-- Clicking Approve in `ReviewDetail` fires `POST /applications/{id}/approve` and updates the row optimistically.
-- Killing the backend mid-session triggers an error toast on the next request and shows a banner; recovery resumes when the backend comes back.
-
-### api-streaming-agent (NEW biome) — SSE event stream
-
-`obs-agent` and `api-agent` must be frozen before it germinates.
-
-**Hard requirements:**
-
-- `backend/api/events.py` — `GET /events/stream?channel=...` endpoint. FastAPI `StreamingResponse` with `media_type="text/event-stream"`. Subscribes to the requested Redis channel and re-emits each message as an SSE `data: {json}\n\n` frame.
-- Channel allowlist: `agent.status.discovery`, `agent.status.application`. Reject any other channel with 400.
-- Heartbeat: emit `:ping\n\n` every 15s so clients can detect connection loss.
-- Auth: same `get_current_user` dependency as the other routers — every connection requires a valid JWT.
-- Backpressure: if a client falls > 100 messages behind, drop the slowest end of their queue and emit `event: slow_client\ndata: {dropped: N}\n\n`. Better to skip frames than block the publisher.
-
-**Acceptance:**
-
-- `curl -N -H "Authorization: Bearer ${JWT}" http://localhost:8000/events/stream?channel=agent.status.discovery` streams events as they're published.
-- Triggering `DiscoveryOrchestrator.run` from another shell produces visible events on the open curl connection within 100ms of each publish.
-- Connection-loss recovery: dropping the network for 5s and reconnecting resumes without duplicate events for already-acked frames (best-effort — full event sourcing is iter-5).
-
-### infra-agent — leaf decomposition + Celery containers
-
-`api-agent` and `frontend-agent` frozen. **Decompose infra-agent into the leaves declared in mycelium.yaml** (`infra-agent.docker.backend`, `infra-agent.docker.frontend`, `infra-agent.docker.compose`, `infra-agent.ecs.task-defs`, `infra-agent.ecs.bootstrap`, `infra-agent.pipeline.digital-dash`). Each leaf owns one file path. No leaf may touch another's artifact.
-
-**Hard requirements:**
-
-- `docker-compose.yml` must gain `celery-worker` and `celery-beat` services as siblings to `backend`. Both consume the same `.env`. `depends_on` Redis + Postgres with health checks.
-- `deploy/ecs-task-def-celery-worker.json` and `deploy/ecs-task-def-celery-beat.json` — new Fargate task definitions. The `beat` task must be `desired_count: 1`, the `worker` task `desired_count: 2` with auto-scaling on CPU > 70%.
-- `digital-dash-pipeline.yml` gets a new stage `deploy-celery` after `deploy-backend`, gated by a manual approval (do not auto-deploy schedulers on every push).
-- `setup-aws.sh` provisions one extra IAM role for the Celery tasks (read SES, read SQS dead-letter, write CloudWatch metrics). Append only — do not modify existing role declarations.
-
-**Acceptance:**
-
-- `docker-compose up` brings all 6 services (postgres, redis, backend, frontend, celery-worker, celery-beat) to healthy state.
-- `docker-compose logs celery-beat` shows the daily task scheduled.
-- `aws ecs describe-task-definition --task-definition talent-agent-celery-worker` returns a definition matching the JSON file.
+`mycelium audit-run` is for biome-level tester HYPHAs that QA a *cultivation*. Synthetics is **runtime monitoring of a deployed system**, not framework QA. Different lifecycle, different state, different alerts. Adjacent but orthogonal. iter-5 builds new infrastructure; audit-run integration is out of scope.
 
 ---
 
-## Tests biome (NEW — runs in every wave)
+## Organisms (new biomes — 3 total)
 
-`pytest` must be green on every shipped path. One test leaf per impacted biome.
+### synthetics-fixtures — the synthetic inputs themselves
+
+`data-agent`, `auth-agent` must be frozen (they are). No new schema.
 
 **Hard requirements:**
 
-- `tests/discovery/test_orchestrator_pubsub.py` — fake Redis (`fakeredis.aioredis`), run `DiscoveryOrchestrator.run` against an in-memory SQLite, assert the 8+ event sequence in order, with no duplicates, and `event=RUN_COMPLETE` last.
-- `tests/scheduler/test_daily_task.py` — invoke `daily_discovery_task` directly with a mocked orchestrator, assert one `crawl_runs` row created per candidate, assert idempotent re-fire deduplicates by `task_id`.
-- `tests/api/test_events_stream.py` — TestClient with streaming response, publish to Redis, assert the SSE frame surfaces with correct JSON. Heartbeat: assert a `:ping` line within 16s.
-- `tests/api/test_review_approve.py` — full integration: create an application row, POST approve, assert state transitions to `APPROVED` and an `application_events` row is written.
-- `frontend/src/api/__tests__/client.test.ts` — vitest. Mock fetch, assert auth header injection, 401 → logout, network error → typed `TalentAgentApiError`.
+- `synthetics/fixtures/candidates.yaml` — 3 synthetic candidates with full resume text + identity context. Each maps to a deterministic UUIDv5 in the synthetic namespace.
+  - `synthetic-jr-engineer` — entry-level full-stack, NYC, $80-110k target
+  - `synthetic-senior-ml` — staff-level ML engineer, Bay Area, $250-350k target
+  - `synthetic-mid-product` — senior product manager, remote, $150-200k target
+- `synthetics/fixtures/jobs/` — 12 JD markdown files. 4 strong matches, 4 weak matches, 4 mismatches per candidate (overlapping where appropriate). Filenames embed expected `is_hot` flag and expected composite score band.
+- `synthetics/fixtures/baselines/` — gitignored at first; written by `mycelium synthetics baseline accept`. Each baseline is `<candidate_id>__<run_id>.json` containing a frozen digest snapshot.
+- `synthetics/fixtures/seeder.py` — idempotent loader that upserts the 3 synthetic candidates into Postgres on backend boot (called from `lifespan`). Detects existing rows by UUID and no-ops.
 
 **Acceptance:**
 
-- `pytest -q` exit 0.
-- `cd frontend && npm test -- --run` exit 0.
-- `ruff check backend/` clean.
-- Coverage report shows ≥80% on the new files (excluding `__init__.py` and migrations).
+- `python -c "from synthetics.fixtures.seeder import seed; import asyncio; asyncio.run(seed())"` is idempotent.
+- `SELECT * FROM candidates WHERE id::text LIKE '00000000-%'` returns exactly 3 rows after seeding.
+- All 12 JDs have valid front-matter declaring `expected_hot` (bool) and `expected_score_band` (one of `low`, `mid`, `high`).
+
+### synthetics-scoring — deterministic scoring drift detection
+
+`discover-agent`, `apply-agent`, `obs-agent` frozen. Consumes `synthetics-fixtures`.
+
+**Hard requirements:**
+
+- `backend/synthetics/scoring_runner.py` — `ScoringSyntheticRunner.run_suite()` iterates the 3 synthetic candidates × 12 JDs, calls the real `RelevanceScorer.score_batch` directly (no crawler), produces a `ScoringFingerprint` per candidate.
+- `backend/synthetics/fingerprint.py` — `compute_fingerprint(digest, contract)` reads NUTRIENTS §I and produces a stable JSON object with the exact-match fields verbatim and the tolerance-match fields as `{value, baseline, drift_pct}`.
+- `backend/synthetics/diff.py` — `diff_against_baseline(fingerprint, baseline, contract) -> DriftReport`. Returns `{exact_violations: [...], tolerance_violations: [...], severity: 'green'|'yellow'|'red'}`.
+- `backend/synthetics/cli.py` — `python -m backend.synthetics run --suite=scoring` reads candidates+JDs, runs scoring, writes `synthetics/runs/<ts>/scoring-report.json`, publishes `agent.status.synthetics.drift` if non-green.
+- **Cache contract**: every Claude call must set `cache_control={"type": "ephemeral"}` on the system prompt + candidate identity. First run primes; subsequent runs verify `cache_creation_input_tokens == 0` and `cache_read_input_tokens > 0`. If verification fails, write a `cache_miss` event and continue (don't abort — log loudly).
+
+**Acceptance:**
+
+- Running the suite twice within 5 min produces identical fingerprints AND >90% cache hit rate (verified from response usage block).
+- Mutating one JD's text and re-running produces a non-empty `DriftReport` localized to that JD.
+- Mutating one score weight in `relevance_scorer.py` and re-running surfaces the drift across all 12 JDs.
+
+### synthetics-crawler — upstream health monitoring
+
+`discover-agent`, `obs-agent` frozen. Independent of `synthetics-fixtures` (real upstreams, no synthetic data).
+
+**Hard requirements:**
+
+- `backend/synthetics/crawler_health.py` — `CrawlerHealthRunner.run_suite()` hits one known-good slug per source (Greenhouse `anthropic`, Lever `netflix`, Ashby `posthog`) with HEAD-equivalent (small `?limit=1` if supported, full GET otherwise) and asserts: HTTP 200, response is JSON, top-level shape matches `expected_schema_v1.json`, `jobs` array has ≥1 entry.
+- Workday is **not** in scope for hourly health checks — Playwright is too expensive per hour. Workday gets a separate daily check via the scoring suite (it's exercised when synthetic candidates pull from it).
+- `backend/synthetics/crawler_health.py` writes `synthetics/runs/<ts>/crawler-report.json` with per-source `{status, latency_ms, schema_match, sample_jobs}`.
+- **Alert state machine**: track per-source `consecutive_failures` in `synthetics/state.json`. Publish `agent.status.synthetics.crawler` red only after **3 consecutive failures** for the same source. Resets on first success. This prevents flapping on transient 5xx.
+- Hourly invocation via Celery beat (new entry in `backend/scheduler/beat.py` — extends frozen biome via the *additive* path: only NEW schedule entries, no changes to `daily_discovery_task`).
+
+**Acceptance:**
+
+- `curl http://localhost:8000/events/stream?channel=agent.status.synthetics.crawler` shows health pings live during a manual `python -m backend.synthetics run --suite=crawler` invocation.
+- Pointing the suite at a deliberately-wrong slug for one source produces `status: failed, consecutive_failures: 1` and does NOT alert.
+- Three consecutive failures produces `status: red, consecutive_failures: 3` and publishes a drift event.
+- A success after 3 failures resets to `status: green, consecutive_failures: 0` and publishes recovery.
+
+---
+
+## Mycelium framework additions
+
+These land at the framework level (legendary-funicular CLI), not in this repo. **Do not write them as leaves of this cultivation.** Track as follow-ups for legendary-funicular PR #4:
+
+- `mycelium synthetics run --suite=<name>` — invokes `python -m backend.synthetics run`, captures stdout, parses the report, surfaces in `sporenet/state.json` as a non-leaf event.
+- `mycelium synthetics baseline accept <run_id>` — copies the run's fingerprint files into `synthetics/fixtures/baselines/`.
+- `mycelium synthetics drift` — pretty-print the latest `DriftReport` from any in-progress or completed run.
+
+These are NOT required for iter-5 cultivation to ship. The Python CLI (`python -m backend.synthetics run`) is the cultivation deliverable. The mycelium wrapper is a quality-of-life sugar layer added later.
 
 ---
 
 ## Mathematics & concurrency
 
-Per `CELLULAR-MAP.md` Concurrency Math, this organism has **10 biomes → ~50 leaves at depth 3 → peak 4 concurrent sessions** under current rate-limit discipline. Iter-4 adds 4 new biomes (scheduler, api-client, api-streaming, tests) and a leaf-level decomposition of infra. New totals:
+Per CELLULAR-MAP, the organism now has **14 biomes / ~100 leaves at depth-3**. Iter-5 adds 3 biomes with conservative leaf counts:
 
-| Depth | Count | Description |
-|---|---|---|
-| Biomes (1) | 14 | 10 existing + 4 new |
-| Specialists (2) | ~32 | After this iteration's decomposition |
-| Leaf specialists (3) | ~62 | Including infra leaves and tests |
-| Peak concurrent sessions | 4 | Held at -c 4 per legendary-funicular's 1055.7s run evidence |
+| Biome | Sub-agents |
+|---|---|
+| synthetics-fixtures | 4 (candidates yaml, jobs dir, baselines scaffold, seeder) |
+| synthetics-scoring | 5 (runner, fingerprint, diff, cli, cache verification) |
+| synthetics-crawler | 4 (runner, schemas, state machine, beat schedule extension) |
 
-Run with `mycelium cultivate -c 4`. Do NOT raise concurrency until cache hit-rate observability is in place. Legendary-funicular's first `-c 30` attempt rate-limited all 43 leaves and burned ~$17 with zero output.
+Total iter-5 leaves: **13**. Run at `-c 4` per legendary-funicular's rate-limit discipline. Wall-clock estimate ~12 min based on iter-4's 20-leaf / 9.8min baseline.
 
-**Budget:** `organism.budget.maxUsd: 100`. Iter-3.5's two leaves cost ~$1.40 total. Iter-4's ~16 active leaves (5 modified biomes + 1 test biome × ~3 leaves each) should land at ~$10-15 with prompt cache hits. Stop the cultivation if `spend > $50` and reassess.
+**Budget for cultivation itself:** ~$6-9 (smaller than iter-4 since the 4 new biomes are tighter scope). **Budget for ongoing synthetic operation:** $13/month target, $20/month hard ceiling.
 
 ---
 
@@ -172,64 +172,61 @@ Run with `mycelium cultivate -c 4`. Do NOT raise concurrency until cache hit-rat
 ```bash
 cd /Users/spy/mfautomations/repos/creation-station/reverse-search
 
-# Wave 1 — pub/sub gap close (no new biomes blocked)
-mycelium cultivate \
-  --only-biome discover-agent \
-  --max-concurrency 2
+# Wave 1 — fixtures land first (independent)
+mycelium cultivate --only-biome synthetics-fixtures -c 2
 
-# Wave 2 — new biomes in parallel (independent dep graphs)
-mycelium cultivate \
-  --only-biome scheduler-agent,api-streaming-agent \
-  --max-concurrency 4
+# Wave 2 — scoring + crawler in parallel (independent, both consume fixtures)
+mycelium cultivate --only-biome synthetics-scoring -c 4
+mycelium cultivate --only-biome synthetics-crawler -c 4
 
-# Wave 3 — frontend wiring (depends on api-streaming)
-mycelium cultivate \
-  --only-biome api-client-agent,infra-agent \
-  --max-concurrency 4
-
-# Wave 4 — tests sweep (depends on everything above)
-mycelium cultivate \
-  --only-biome tests \
-  --max-concurrency 4
+# (Or one shot, excluding the 14 frozen biomes)
+mycelium cultivate --exclude-biome data-agent design-agent auth-agent obs-agent \
+  discover-agent apply-agent agents-agent api-agent frontend-agent infra-agent \
+  scheduler-agent api-streaming-agent api-client-agent tests-agent -c 4
 ```
 
-Run waves sequentially. Inside each wave the leaves germinate against frozen HYPHA contracts in parallel. Harvest after each wave with `mycelium harvest -t 0.8` and let the merge_order do its job.
+Then harvest:
+```bash
+mycelium harvest -t 0.8   # framework rollup fix landed in PR #3
+```
 
 ---
 
 ## What MUST NOT happen
 
-- **No re-cultivation of frozen biomes.** Do not touch `data-agent`, `design-agent`, `auth-agent`, `agents-agent`, or the iter-3.5 crawler internals. The freeze is real.
-- **No new top-level dependencies.** `celery`, `fakeredis`, and `vitest` go in `requirements.txt` / `package.json`. Nothing else.
-- **No mocked data in frontend pages.** If a page can't get real data because the backend isn't running, it must show an error state, not silently render placeholders.
-- **No `print()` anywhere.** `structlog` only. Frontend uses the existing logging utility, not `console.log`.
-- **No comments containing "STUB", "TODO: implement", "Phase 1B", or "placeholder".** Iter-3.5 already cleaned the crawler; do not reintroduce them.
-- **No `--no-verify` git commits.** Auto-commit hooks must pass.
-- **No raising concurrency above -c 4.** Cache hit-rate observability is iter-5 work. Until then, hold the line.
-- **No Bash escape hatches.** Sub-agents write/edit files via Write and Edit only. The `mycelium audit-run` `--autofix` loop relies on declared artifacts being accurate.
-- **No skipping the test biome.** Iter-3 shipped 5 stubs because the test sweep was elided. Not again.
+- **No schema changes.** Synthetics use UUID namespace, not a new column or table. data-agent stays frozen.
+- **No `Candidate.synthetic = True` boolean anywhere.** The UUID prefix IS the marker.
+- **No new top-level dependencies.** `httpx`, `pydantic`, `pyyaml`, `redis` already in `requirements.txt`. Anything else is a contract amendment, not a leaf decision.
+- **No Workday hourly health checks.** Playwright is too expensive per hour. Daily only, via the scoring suite path.
+- **No bypassing the cache.** Every Claude call in synthetics has `cache_control={"type": "ephemeral"}`. A leaf that omits it ships a cache-miss event AND fails its own acceptance criterion.
+- **No prod-only paths.** The remote target is configured but exercised only in iter-6+. Local docker-compose is the iter-5 surface.
+- **No re-cultivation of frozen biomes.** Iter-4's 14 biomes are sealed. The crawler-health beat schedule extension lives in `backend/synthetics/`, not `backend/scheduler/`, and is registered from there via the existing Celery app import (additive only).
+- **No `--no-verify`.** Auto-commit hooks pass.
+- **No `print()`.** `structlog` only. Frontend uses logging utility.
+- **No concurrency above `-c 4`.** Cache observability lands later.
+- **No mocking the Claude API in scoring runs.** Synthetic INPUTS are mock; the scorer is real. That's the entire point.
 
 ---
 
 ## Acceptance (organism-level)
 
-The cultivation is considered successful when ALL of the following are true after `mycelium harvest -t 0.8`:
+The cultivation is successful when ALL of the following are true:
 
-1. `pytest -q` → exit 0, ≥80% coverage on new files.
-2. `cd frontend && npm test -- --run` → exit 0, `npm run typecheck` clean.
-3. `ruff check backend/` clean.
-4. `docker-compose up` brings 6 services healthy within 90s.
-5. End-to-end smoke: `python -m backend.cli loop --candidate sean-young --dry-run` produces a `daily_digests` row, a `crawl_runs` row in COMPLETED, ≥8 published events, and no errors in `structlog` JSON output.
-6. Frontend visited in a browser with backend running shows real digest data, supports magic-link login, and the Approve button on a Review Queue item produces a state transition in Postgres.
-7. The dashboard at `sporenet/dashboard.html` (rendered post-cultivate by `mycelium sporenet render`) shows all 14 biomes at `done` status with commit SHAs.
-8. Every published `agent.status.*` event lands in the SSE stream within 100ms.
+1. `pytest tests/synthetics/ -v` → exit 0.
+2. `npx tsc --noEmit` and `npm test -- --run` in frontend → still clean (no regressions to iter-4).
+3. `python -m backend.synthetics run --suite=scoring` against a freshly-seeded docker-compose backend produces `synthetics/runs/<ts>/scoring-report.json` with green status on first run AND second run (baseline written between).
+4. `python -m backend.synthetics run --suite=crawler` produces `synthetics/runs/<ts>/crawler-report.json` with three sources reporting status `green`.
+5. Mutating one score weight in the scorer and re-running scoring suite produces a non-empty `DriftReport` with severity `yellow` or `red`.
+6. Three sequential simulated upstream failures produces a single `agent.status.synthetics.crawler` red event — not three separate events.
+7. Two sequential clean runs of the scoring suite (within 5 min) show `cache_read_input_tokens > 0` on the second run for every Claude call.
+8. `cat synthetics/state.json` shows `consecutive_failures: 0` for every source after a successful crawler run.
 
-If 1-3 fail, fix the leaves and re-cultivate. If 4-8 fail, the integration seam was not closed correctly — file a framework bug if a leaf reported FRUIT_READY but its acceptance criterion regresses on the merged main.
+If 1-2 fail, fix the leaves and re-cultivate. If 3-8 fail, the synthetic harness can't see itself — that's a deeper design problem, file an issue, do not paper over with `--skip` flags.
 
 ---
 
 ## Why this iteration matters
 
-This is the first cultivation where the system observes itself end-to-end. Discovery publishes, the API streams, the frontend listens, the operator approves. Until those four seams close, every prior iteration's shipped biome was a leaf without a tree. After this cultivation, the recursive build pattern from legendary-funicular's audit-run applies to talent-agent: the system can run itself, watch itself, and (in iter-5) heal itself.
+Without synthetics, the loop iter-4 closed is invisible after it ships. The frontend renders mock data when the backend is down; the orchestrator runs once a day and nobody knows if it produced the right output until a human checks. Iter-5 makes the system observable to itself: the synthetics ARE the witness. If the discovery pipeline drifts — Claude version bump, crawler API change, scorer regression — the synthetic harness sees it within 24 hours, fingerprints exactly what changed, and screams. That's the foundation every later iteration depends on. iter-6 can finally deploy to prod without flying blind.
 
 *The Dot Connects.*

@@ -1,4 +1,4 @@
-# CLAUDE.md — Talent Agent (Iter-4)
+# CLAUDE.md — Talent Agent (Iter-5)
 ## VibeSpace LLC · Built by Space Cowboy #9
 
 ---
@@ -43,12 +43,14 @@ Miami, FL · github.com/tyzeeington · spy@seanyoung.biz
 
 **Target market:** Recruiting agencies managing 50–500 candidates simultaneously.
 
-**Iter-4 Focus:** End-to-end loop validation. Discovery publishes status events, the API streams them via SSE, the frontend listens, the operator approves. Five seams to close:
-1. Discovery orchestrator pub/sub (`_publish_status` helper)
-2. Celery beat daily 7am cron trigger
-3. Frontend `apiClient` wired to FastAPI surface
-4. Review queue approve/reject end-to-end
-5. Infra-agent leaf decomposition for surgical changes
+**Iter-5 Focus:** Synthetic Monitoring. Make the system observe itself via a synthetic monitoring harness that exercises the Discovery → Score → Apply pipeline daily with known-input synthetic candidates, fingerprints the output, and alerts on drift. Three new biomes:
+1. `synthetics-fixtures` — synthetic candidates, JD fixtures, baseline scaffolding
+2. `synthetics-scoring` — deterministic scoring drift detection with cache verification
+3. `synthetics-crawler` — upstream health monitoring with state machine alerts
+
+**Two failure modes the synthetic harness surfaces:**
+1. **Scoring drift** — same input, different score. Catches Claude version bumps, prompt edits, archetype-generator regressions.
+2. **Crawler regression** — upstream API schema change, rate-limit policy shift, or selector breakage.
 
 ---
 
@@ -117,12 +119,17 @@ Frozen contracts live in `NUTRIENTS.md`. Amendments only via `FRUIT_READY` contr
 7. **No `print()` anywhere** — `structlog` only; frontend uses logging utility, not `console.log`
 8. **No comments containing "STUB", "TODO: implement", "Phase 1B", or "placeholder"** — the crawler is real now
 9. **No `--no-verify` git commits** — auto-commit hooks must pass
-10. **No raising concurrency above -c 4** — cache hit-rate observability is iter-5 work
+10. **No raising concurrency above -c 4** — rate-limit discipline
 11. **No Bash escape hatches** — sub-agents write/edit files via Write and Edit only
 12. **No skipping the test biome** — every biome ships with tests
 13. **No mocked data in frontend pages** — show error states if backend unavailable
-14. **Frozen biomes are frozen** — do NOT touch `data-agent`, `design-agent`, `auth-agent`, `agents-agent`, or iter-3.5 crawler internals
-15. **No new top-level dependencies** — `celery`, `fakeredis`, `vitest` allowed; nothing else without FRUIT_READY line
+14. **Frozen biomes are frozen** — Iter-4's 14 biomes are sealed. Do NOT touch `data-agent`, `design-agent`, `auth-agent`, `agents-agent`, `obs-agent`, `discover-agent`, `apply-agent`, `api-agent`, `frontend-agent`, `infra-agent`, `scheduler-agent`, `api-streaming-agent`, `api-client-agent`, `tests-agent`
+15. **No new top-level dependencies** — `httpx`, `pydantic`, `pyyaml`, `redis` already in requirements.txt. Anything else requires FRUIT_READY contract amendment line
+16. **No schema changes for synthetics** — Synthetic candidates use UUID namespace isolation (`00000000-0000-5xxx-...`), not a `candidates.synthetic` boolean column
+17. **No Workday hourly health checks** — Playwright is too expensive per hour. Workday exercises daily via scoring suite only
+18. **Cache is mandatory** — Every Claude call in synthetics MUST set `cache_control={"type": "ephemeral"}`. A leaf that omits it ships a cache-miss event AND fails its own acceptance criterion
+19. **No mocking the Claude API in scoring runs** — Synthetic INPUTS are mock; the scorer is real. That's the point
+20. **Local-first** — Synthetics monitor docker-compose, not prod. Remote target is configured but exercised only in iter-6+
 
 ---
 
@@ -199,19 +206,20 @@ Every status transition:
 
 ## CURRENT PHASE
 
-**Iteration 4 — End-to-End Loop Validation**
+**Iteration 5 — Synthetic Monitoring**
 
-This iteration closes the loop: the orchestrator publishes status, the dashboard reads it, and a single command takes a real candidate through Discovery → Review → Apply.
+This iteration makes the system observe itself. Iter-4 shipped the end-to-end loop (Celery beat, SSE stream, frontend apiClient, full test sweep — 20/20 FRUIT_READY). Now we add synthetic monitoring to detect drift before users do.
 
-**Goal:** Run `python -m backend.cli loop --candidate sean-young` and watch the system go from a resume PDF on disk to a tailored email draft awaiting human approval in the Review Queue UI — with structured logs and pub/sub events at every stage.
+**Goal:** Run `python -m backend.synthetics run --suite=scoring` and produce `synthetics/runs/<ts>/scoring-report.json` containing fingerprints for each synthetic candidate. Run twice: identical fingerprints + >90% cache hit rate. Mutate a score weight: non-empty `DriftReport`.
 
 **New Biomes:**
-- `scheduler-agent` — Celery beat wiring for daily 7am cron
-- `api-client-agent` — Frontend API client wiring
-- `api-streaming-agent` — SSE event stream endpoint
-- `tests-agent` — pytest and vitest test suites
+- `synthetics-fixtures-agent` — Synthetic candidates, JD fixtures, seeder
+- `synthetics-scoring-agent` — Scoring drift detection, fingerprinting, diff engine
+- `synthetics-crawler-agent` — Upstream health monitoring, state machine alerts
 
-**Budget:** `organism.budget.maxUsd: 100`. Expected spend: ~$10-15 with prompt cache hits. Stop cultivation if `spend > $50`.
+**Budget:** Cultivation ~$6-9. Ongoing operation ~$13/month (aggressive cache), hard ceiling $20/month.
+
+**Iter-4 Biomes (14 total) are FROZEN — do not touch.**
 
 ---
 
@@ -229,6 +237,9 @@ When spinning up Claude Code subagents for parallel tasks, name them:
 | Debugging | **Sherlock** |
 | Scheduler | **Clockwork** |
 | API Streaming | **Conduit** |
+| Synthetics Fixtures | **Fabricator** |
+| Synthetics Scoring | **Witness** |
+| Synthetics Crawler | **Sentinel** |
 
 ---
 

@@ -8,16 +8,16 @@
 
 | Depth | Count | Description |
 |---|---|---|
-| Biomes (1) | 14 | 10 existing + 4 new (scheduler, api-streaming, api-client, tests) |
-| Specialists (2) | ~32 | After iter-4 decomposition |
-| Leaf specialists (3) | ~62 | Including infra leaves and test leaves |
+| Biomes (1) | 17 | 14 iter-4 (frozen) + 3 new (synthetics-fixtures, synthetics-scoring, synthetics-crawler) |
+| Specialists (2) | ~45 | After iter-5 decomposition |
+| Leaf specialists (3) | ~75 | Including synthetics leaves |
 | **Total concurrent sessions at peak** | **4** | Current (rate-limit discipline) |
 | **Target peak (full depth-3)** | **8-12** | After cache warmup + token bucket optimization |
 
-**Iter-4 deltas:**
-- +4 new biomes: scheduler-agent, api-streaming-agent, api-client-agent, tests-agent
-- +11 new specialists across new biomes
-- infra-agent decomposed into 6 explicit leaves
+**Iter-5 deltas:**
+- +3 new biomes: synthetics-fixtures-agent, synthetics-scoring-agent, synthetics-crawler-agent
+- +13 new specialists across synthetics biomes
+- Iter-4's 14 biomes are frozen — no modifications allowed
 
 ---
 
@@ -34,7 +34,7 @@
 ## Execution Tree
 
 ```
-organism: talent-agent (iter-4)
+organism: talent-agent (iter-5)
 │
 ├── data-agent (4 specialists) — FROZEN
 │   ├── data-agent.migrations
@@ -82,7 +82,7 @@ organism: talent-agent (iter-4)
 │       ├── obs-agent.pubsub.taxonomy
 │       └── obs-agent.pubsub.publisher
 │
-├── discover-agent (6 specialists) — ITER-4 MODIFIED
+├── discover-agent (6 specialists) — FROZEN
 │   ├── discover-agent.identity
 │   │   └── discover-agent.identity.profiler
 │   ├── discover-agent.archetype
@@ -98,7 +98,7 @@ organism: talent-agent (iter-4)
 │   │   └── discover-agent.digest.builder
 │   ├── discover-agent.orchestrator
 │   │   └── discover-agent.orchestrator.main
-│   └── discover-agent.pubsub  ← NEW: _publish_status helper
+│   └── discover-agent.pubsub
 │       └── discover-agent.pubsub.status-events
 │
 ├── apply-agent (7 specialists) — FROZEN
@@ -143,7 +143,7 @@ organism: talent-agent (iter-4)
 │   └── api-agent.health
 │       └── api-agent.health.endpoint
 │
-├── scheduler-agent (4 specialists) ← NEW BIOME
+├── scheduler-agent (4 specialists) — FROZEN
 │   ├── scheduler-agent.app
 │   │   └── scheduler-agent.app.celery-factory
 │   ├── scheduler-agent.tasks
@@ -153,7 +153,7 @@ organism: talent-agent (iter-4)
 │   └── scheduler-agent.retry
 │       └── scheduler-agent.retry.exponential-backoff
 │
-├── api-streaming-agent (4 specialists) ← NEW BIOME
+├── api-streaming-agent (4 specialists) — FROZEN
 │   ├── api-streaming-agent.events
 │   │   └── api-streaming-agent.events.endpoint
 │   ├── api-streaming-agent.subscriber
@@ -186,7 +186,7 @@ organism: talent-agent (iter-4)
 │       ├── frontend-agent.review-queue.list
 │       └── frontend-agent.review-queue.detail
 │
-├── api-client-agent (7 specialists) ← NEW BIOME
+├── api-client-agent (7 specialists) — FROZEN
 │   ├── api-client-agent.client
 │   │   └── api-client-agent.client.fetch-wrapper
 │   ├── api-client-agent.auth
@@ -202,7 +202,7 @@ organism: talent-agent (iter-4)
 │   └── api-client-agent.page-wiring
 │       └── api-client-agent.page-wiring.data-integration
 │
-├── infra-agent (6 specialists) — ITER-4 LEAF DECOMPOSED
+├── infra-agent (6 specialists) — FROZEN
 │   ├── infra-agent.docker.backend
 │   │   └── infra-agent.docker.backend.dockerfile
 │   ├── infra-agent.docker.frontend
@@ -219,17 +219,49 @@ organism: talent-agent (iter-4)
 │   └── infra-agent.pipeline.digital-dash
 │       └── infra-agent.pipeline.digital-dash.deploy-celery
 │
-└── tests-agent (5 specialists) ← NEW BIOME
-    ├── tests-agent.discovery.pubsub
-    │   └── tests-agent.discovery.pubsub.event-sequence
-    ├── tests-agent.scheduler.daily
-    │   └── tests-agent.scheduler.daily.task-creation
-    ├── tests-agent.api.events
-    │   └── tests-agent.api.events.sse-frames
-    ├── tests-agent.api.review
-    │   └── tests-agent.api.review.approve-flow
-    └── tests-agent.frontend.client
-        └── tests-agent.frontend.client.auth-injection
+├── tests-agent (5 specialists) — FROZEN
+│   ├── tests-agent.discovery.pubsub
+│   │   └── tests-agent.discovery.pubsub.event-sequence
+│   ├── tests-agent.scheduler.daily
+│   │   └── tests-agent.scheduler.daily.task-creation
+│   ├── tests-agent.api.events
+│   │   └── tests-agent.api.events.sse-frames
+│   ├── tests-agent.api.review
+│   │   └── tests-agent.api.review.approve-flow
+│   └── tests-agent.frontend.client
+│       └── tests-agent.frontend.client.auth-injection
+│
+├── synthetics-fixtures-agent (4 specialists) ← NEW BIOME
+│   ├── synthetics-fixtures-agent.candidates
+│   │   └── synthetics-fixtures-agent.candidates.yaml-definitions
+│   ├── synthetics-fixtures-agent.jobs
+│   │   └── synthetics-fixtures-agent.jobs.jd-markdown-files
+│   ├── synthetics-fixtures-agent.baselines
+│   │   └── synthetics-fixtures-agent.baselines.gitignore-scaffold
+│   └── synthetics-fixtures-agent.seeder
+│       └── synthetics-fixtures-agent.seeder.idempotent-upsert
+│
+├── synthetics-scoring-agent (5 specialists) ← NEW BIOME
+│   ├── synthetics-scoring-agent.runner
+│   │   └── synthetics-scoring-agent.runner.suite-orchestration
+│   ├── synthetics-scoring-agent.fingerprint
+│   │   └── synthetics-scoring-agent.fingerprint.stable-json
+│   ├── synthetics-scoring-agent.diff
+│   │   └── synthetics-scoring-agent.diff.baseline-comparison
+│   ├── synthetics-scoring-agent.cli
+│   │   └── synthetics-scoring-agent.cli.run-command
+│   └── synthetics-scoring-agent.cache-verification
+│       └── synthetics-scoring-agent.cache-verification.hit-rate-check
+│
+└── synthetics-crawler-agent (4 specialists) ← NEW BIOME
+    ├── synthetics-crawler-agent.runner
+    │   └── synthetics-crawler-agent.runner.health-check
+    ├── synthetics-crawler-agent.schemas
+    │   └── synthetics-crawler-agent.schemas.expected-shapes
+    ├── synthetics-crawler-agent.state-machine
+    │   └── synthetics-crawler-agent.state-machine.consecutive-failures
+    └── synthetics-crawler-agent.beat-extension
+        └── synthetics-crawler-agent.beat-extension.hourly-schedule
 ```
 
 ---
@@ -279,6 +311,12 @@ graph TD
         TESTS[tests-agent]
     end
 
+    subgraph "Tier 7 (Synthetics - Iter-5)"
+        SYNTHFIXTURES[synthetics-fixtures-agent]
+        SYNTHSCORING[synthetics-scoring-agent]
+        SYNTHCRAWLER[synthetics-crawler-agent]
+    end
+
     DATA --> AUTH
     DATA --> OBS
     DATA --> DISCOVER
@@ -319,27 +357,32 @@ graph TD
     DISCOVER --> TESTS
     SCHEDULER --> TESTS
     STREAMING --> TESTS
+
+    %% Iter-5 synthetics dependencies
+    SYNTHFIXTURES --> SYNTHSCORING
+    SYNTHFIXTURES --> SYNTHCRAWLER
 ```
 
 ---
 
 ## What's Next
 
-1. **Cache hit-rate observability** (+0 sessions, iter-5 work)
-   - Add metrics to track prompt cache utilization
-   - Tune concurrency based on cache performance
+1. **Deploy synthetics to production** (iter-6 work)
+   - Run `deploy/setup-aws.sh` to stand up ECS
+   - Flip `synthetics.target: remote` in mycelium.yaml
+   - Exercise synthetics against live backend
 
-2. **Decompose api-client-agent.page-wiring deeper** (+5 sessions)
-   - Each page (Overview, Pipeline, Analytics, ReviewQueue, ReviewDetail) could be a leaf
-   - Currently bundled for simplicity
+2. **Synthetic dashboard UI** (+3 specialists)
+   - `/synthetics` route showing recent runs, drift reports, crawler health
+   - Real-time SSE subscription to `agent.status.synthetics.*` channels
 
-3. **Add error recovery specialists** (+3 sessions)
-   - Circuit breaker leaves for external API failures
-   - Graceful degradation paths
+3. **Baseline approval workflow UI** (+2 specialists)
+   - Review drift reports in browser
+   - One-click baseline acceptance
 
-4. **Parallel merge verification** (+1 background session)
-   - Run merge-order checks while specialists are fruiting
-   - Catch integration issues earlier
+4. **Expand synthetic candidate coverage** (+1 specialist)
+   - Add edge-case candidates (career changers, gap years, non-traditional backgrounds)
+   - Stress-test archetype generator
 
 ---
 
@@ -349,5 +392,6 @@ graph TD
 - **Circuit breakers:** Add backpressure mechanisms if any specialist consistently fails.
 - **Cost tracking:** Token usage per leaf for budget forecasting.
 - **Incremental freeze:** Allow mid-cultivation contract amendments without full re-freeze.
-- **Event sourcing:** Full event replay for SSE connections (iter-5).
+- **Event sourcing:** Full event replay for SSE connections.
 - **Multi-tenant isolation:** Agency-level candidate partitioning (post-MVP).
+- **Workday hourly health checks:** Currently daily only; Playwright cost prohibitive for hourly.
