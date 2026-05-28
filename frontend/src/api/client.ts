@@ -8,11 +8,51 @@
  * - JWT storage key: talent-agent-jwt
  * - Base URL: VITE_API_BASE_URL
  *
+ * Error handling (api-client-agent.error-handling scope):
+ * - 401 responses invalidate JWT, redirect to /login, and surface toast notification
+ * - Network errors surface TalentAgentApiError with status 0
+ *
  * @license Apache-2.0
  * @copyright VibeSpace LLC
  */
 
 import { routes } from '../lib/routes'
+
+// ─── Toast Event System ──────────────────────────────────────────────────────
+// Custom event pattern for toast notifications. The UI layer (frontend-agent)
+// subscribes to these events and renders the actual toast UI.
+
+/**
+ * Toast notification payload.
+ */
+export interface ToastPayload {
+  /** Toast message */
+  message: string
+  /** Toast type for styling */
+  type: 'error' | 'warning' | 'success' | 'info'
+  /** Auto-dismiss duration in ms (0 = manual dismiss) */
+  duration?: number
+}
+
+/**
+ * Custom event name for toast notifications.
+ * UI components can listen: window.addEventListener('talent-agent:toast', handler)
+ */
+export const TOAST_EVENT = 'talent-agent:toast' as const
+
+/**
+ * Dispatch a toast notification event.
+ * The UI layer is responsible for rendering the toast.
+ *
+ * @param payload - Toast notification payload
+ */
+export function dispatchToast(payload: ToastPayload): void {
+  const event = new CustomEvent<ToastPayload>(TOAST_EVENT, {
+    detail: payload,
+    bubbles: true,
+  })
+  window.dispatchEvent(event)
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -174,18 +214,42 @@ export const apiClient = {
       })
     } catch (error) {
       // Network error (backend down, CORS, etc.)
-      throw new TalentAgentApiError({
+      // Per HYPHA-API-CLIENT: "Killing the backend mid-session triggers an error toast"
+      const networkError = new TalentAgentApiError({
         status: 0,
         code: 'NETWORK_ERROR',
         message: 'Unable to connect to server. Please check your connection.',
       })
+
+      dispatchToast({
+        message: networkError.message,
+        type: 'error',
+        duration: 5000,
+      })
+
+      throw networkError
     }
 
-    // Handle 401 — invalidate JWT, redirect to login
+    // Handle 401 — invalidate JWT, redirect to login, surface toast
+    // Per HYPHA-API-CLIENT acceptance criteria: "401 response invalidates JWT,
+    // redirects to /login, shows toast 'Session expired'"
     if (response.status === 401) {
       clearToken()
-      // Redirect to login
-      window.location.href = routes.login
+
+      // Dispatch toast notification before redirect
+      // The UI layer (ToastProvider) will render the message
+      dispatchToast({
+        message: 'Session expired. Please log in again.',
+        type: 'error',
+        duration: 5000,
+      })
+
+      // Redirect to login after a brief delay to allow toast to render
+      // Using setTimeout ensures the toast event is processed before navigation
+      setTimeout(() => {
+        window.location.href = routes.login
+      }, 100)
+
       throw new TalentAgentApiError({
         status: 401,
         code: 'UNAUTHORIZED',
