@@ -1,0 +1,291 @@
+# Copyright 2026 VibeSpace LLC
+# Licensed under the Apache License, Version 2.0
+
+# Synthetic Candidate Fixtures for Drift Detection
+#
+# These 3 deterministic synthetic candidates exercise the Discovery -> Score
+# pipeline daily. Each candidate has a unique UUIDv5 derived from:
+#   uuid.uuid5(uuid.NAMESPACE_DNS, "synthetic-{slug}")
+#
+# The UUID marker pattern 00000000-0000-5xxx- allows detection via SQL:
+#   SELECT * FROM candidates WHERE id::text LIKE '00000000-%'
+#
+# Contract: NUTRIENTS.md I.1, I.9
+
+candidates:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # SYNTHETIC-JR-ENGINEER
+  # Entry-level full-stack developer, 1-2 years experience
+  # ─────────────────────────────────────────────────────────────────────────────
+  - slug: synthetic-jr-engineer
+    name: Jordan Chen
+    email: jordan.chen.synthetic@talent-agent.test
+    linkedin_url: https://linkedin.com/in/synthetic-jr-engineer
+    github_url: https://github.com/synthetic-jr-engineer
+    identity_context:
+      location: New York, NY
+      target_salary_min: 80000
+      target_salary_max: 110000
+      remote_preference: hybrid
+      experience_years: 2
+      leadership_level: IC
+    target_locations:
+      - New York, NY
+      - Remote
+    excluded_companies:
+      - Palantir
+      - Meta
+    excluded_industries:
+      - Defense
+      - Gambling
+    resume_text: |
+      JORDAN CHEN
+      Full-Stack Software Engineer
+      New York, NY | jordan.chen@email.com | linkedin.com/in/jordanchen | github.com/jchen-dev
+
+      SUMMARY
+      Enthusiastic full-stack developer with 2 years of experience building modern web
+      applications. Passionate about clean code, user experience, and continuous learning.
+      Seeking opportunities to grow my skills while contributing to impactful products.
+
+      EXPERIENCE
+
+      Software Engineer | TechStart Inc. | New York, NY | June 2024 - Present
+      - Developed and maintained React-based dashboard serving 15,000+ daily active users
+      - Built RESTful APIs using Node.js and Express with PostgreSQL database integration
+      - Implemented automated testing suite achieving 85% code coverage with Jest and Cypress
+      - Collaborated with design team to improve UI/UX, reducing user support tickets by 30%
+      - Participated in Agile ceremonies including daily standups and sprint retrospectives
+
+      Junior Developer (Intern to Full-Time) | WebFlow Agency | Brooklyn, NY | Jan 2023 - May 2024
+      - Created responsive landing pages and marketing sites for 20+ small business clients
+      - Migrated legacy jQuery codebase to modern React, improving page load time by 40%
+      - Assisted senior developers in debugging production issues and optimizing database queries
+      - Wrote technical documentation for internal tools and onboarding processes
+
+      EDUCATION
+
+      Bachelor of Science in Computer Science | New York University | May 2023
+      - GPA: 3.6/4.0
+      - Relevant Coursework: Data Structures, Algorithms, Web Development, Database Systems
+      - Hackathon Winner: NYU HackNight 2022 - Built real-time collaborative note-taking app
+
+      TECHNICAL SKILLS
+
+      Languages: JavaScript, TypeScript, Python, HTML5, CSS3, SQL
+      Frontend: React, Next.js, Redux, Tailwind CSS, Material UI
+      Backend: Node.js, Express, FastAPI, REST APIs, GraphQL basics
+      Databases: PostgreSQL, MongoDB, Redis
+      Tools: Git, GitHub, Docker basics, VS Code, Figma, Jira
+      Testing: Jest, React Testing Library, Cypress
+
+      PROJECTS
+
+      TaskFlow - Personal Project Management App (github.com/jchen-dev/taskflow)
+      - Built full-stack task management app with React frontend and Node.js backend
+      - Implemented real-time updates using WebSockets for collaborative features
+      - Deployed on Vercel (frontend) and Railway (backend) with CI/CD via GitHub Actions
+
+      WeatherNow - React Native Mobile App
+      - Developed cross-platform weather app using React Native and OpenWeatherMap API
+      - Implemented location-based weather with push notifications for severe weather alerts
+
+      CERTIFICATIONS
+      - AWS Certified Cloud Practitioner (2024)
+      - Meta Front-End Developer Professional Certificate (2023)
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # SYNTHETIC-SENIOR-ML
+  # Staff-level ML engineer, 8+ years experience
+  # ─────────────────────────────────────────────────────────────────────────────
+  - slug: synthetic-senior-ml
+    name: Dr. Priya Ramanathan
+    email: priya.ramanathan.synthetic@talent-agent.test
+    linkedin_url: https://linkedin.com/in/synthetic-senior-ml
+    github_url: https://github.com/synthetic-senior-ml
+    identity_context:
+      location: San Francisco, CA
+      target_salary_min: 250000
+      target_salary_max: 350000
+      remote_preference: remote_only
+      experience_years: 9
+      leadership_level: Staff
+    target_locations:
+      - San Francisco, CA
+      - Remote
+    excluded_companies:
+      - Oracle
+      - IBM
+    excluded_industries:
+      - Oil and Gas
+      - Tobacco
+    resume_text: |
+      DR. PRIYA RAMANATHAN
+      Staff Machine Learning Engineer
+      San Francisco, CA | priya.ram@email.com | linkedin.com/in/priyaram | github.com/priya-ml
+
+      SUMMARY
+      Staff-level ML engineer with 9 years of experience building production ML systems at
+      scale. Expert in deep learning, distributed training, and MLOps infrastructure.
+      Published researcher with 12 peer-reviewed papers. Proven track record of leading
+      cross-functional teams and delivering ML products used by millions of users.
+
+      EXPERIENCE
+
+      Staff Machine Learning Engineer | Anthropic | San Francisco, CA | March 2022 - Present
+      - Lead technical direction for retrieval-augmented generation (RAG) infrastructure
+      - Architected distributed training pipeline processing 500TB+ of text data monthly
+      - Reduced model inference latency by 60% through quantization and caching optimizations
+      - Mentored team of 6 ML engineers, establishing best practices for experiment tracking
+      - Collaborated with research team on novel attention mechanisms for long-context models
+
+      Senior Machine Learning Engineer | Scale AI | San Francisco, CA | Jan 2019 - Feb 2022
+      - Built data labeling quality assurance system using active learning, improving label
+        accuracy from 92% to 98.5%
+      - Designed and deployed computer vision pipeline for autonomous vehicle annotation
+      - Led migration from TensorFlow 1.x to PyTorch, reducing training time by 35%
+      - Authored internal course on MLOps best practices, trained 50+ engineers
+
+      Machine Learning Engineer | Uber ATG | Pittsburgh, PA | Aug 2016 - Dec 2018
+      - Developed real-time object detection models for self-driving vehicles
+      - Implemented distributed training infrastructure using Horovod across 128 GPUs
+      - Built A/B testing framework for ML model deployment with statistical rigor
+      - Published research on domain adaptation for weather-robust perception systems
+
+      Research Scientist Intern | Google Brain | Mountain View, CA | Summer 2015
+      - Researched attention mechanisms for sequence-to-sequence models
+      - Contributed to TensorFlow open-source project (2 merged PRs)
+
+      EDUCATION
+
+      Ph.D. in Computer Science (Machine Learning) | Carnegie Mellon University | 2016
+      - Dissertation: "Efficient Deep Learning for Resource-Constrained Environments"
+      - Advisor: Dr. Geoffrey Hinton (visiting), Dr. Ruslan Salakhutdinov
+      - NSF Graduate Research Fellowship
+
+      M.S. in Computer Science | Stanford University | 2012
+      - Focus: Artificial Intelligence and Natural Language Processing
+
+      B.Tech in Computer Science | IIT Bombay | 2010
+      - Gold Medalist, Department of Computer Science
+
+      TECHNICAL SKILLS
+
+      Languages: Python, C++, CUDA, SQL, Rust (learning)
+      ML Frameworks: PyTorch, TensorFlow, JAX, Hugging Face Transformers
+      Infrastructure: Kubernetes, Ray, Spark, Airflow, MLflow, Weights & Biases
+      Cloud: AWS (SageMaker, EKS, S3), GCP (Vertex AI, TPU), Azure ML
+      Specializations: LLMs, RAG systems, distributed training, model optimization,
+        computer vision, NLP, MLOps
+
+      PUBLICATIONS (Selected)
+
+      - "Efficient Attention Mechanisms for Long-Context Language Models" - NeurIPS 2023
+      - "Domain Adaptation for Robust Perception in Adverse Weather" - CVPR 2018
+      - "Active Learning for Data-Efficient Model Training" - ICML 2020
+      - 9 additional peer-reviewed publications (Google Scholar: 2,400+ citations)
+
+      PATENTS
+      - US Patent 11,234,567: "Method for Efficient Inference in Transformer Models"
+      - US Patent 10,987,654: "System for Automated ML Pipeline Orchestration"
+
+      SPEAKING
+      - NeurIPS 2023: Workshop on Efficient Deep Learning
+      - PyTorch Conference 2022: Distributed Training at Scale
+      - MLOps Community Summit 2021: Building Reliable ML Systems
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # SYNTHETIC-MID-PRODUCT
+  # Senior product manager, 5 years experience
+  # ─────────────────────────────────────────────────────────────────────────────
+  - slug: synthetic-mid-product
+    name: Marcus Thompson
+    email: marcus.thompson.synthetic@talent-agent.test
+    linkedin_url: https://linkedin.com/in/synthetic-mid-product
+    github_url: null
+    identity_context:
+      location: Austin, TX
+      target_salary_min: 150000
+      target_salary_max: 200000
+      remote_preference: remote_only
+      experience_years: 5
+      leadership_level: Manager
+    target_locations:
+      - Austin, TX
+      - Remote
+    excluded_companies:
+      - Amazon
+      - Uber
+    excluded_industries:
+      - Crypto
+      - Adult Entertainment
+    resume_text: |
+      MARCUS THOMPSON
+      Senior Product Manager
+      Austin, TX | marcus.t@email.com | linkedin.com/in/marcusthompson
+
+      SUMMARY
+      Data-driven product manager with 5 years of experience building B2B SaaS products
+      that customers love. Skilled at translating complex technical capabilities into
+      compelling user experiences. Track record of launching products that drive measurable
+      business outcomes. Passionate about the intersection of technology and human needs.
+
+      EXPERIENCE
+
+      Senior Product Manager | Notion | Austin, TX (Remote) | Jan 2022 - Present
+      - Own product roadmap for Notion's collaboration features serving 30M+ users
+      - Led launch of real-time commenting system, driving 25% increase in team adoption
+      - Partnered with engineering to reduce page load time by 40%, improving NPS by 15 points
+      - Conducted 100+ customer interviews to identify pain points in enterprise workflows
+      - Managed cross-functional team of 8 engineers, 2 designers, and 1 researcher
+      - Defined and tracked OKRs, achieving 90%+ goal completion for 6 consecutive quarters
+
+      Product Manager | Figma | San Francisco, CA | June 2020 - Dec 2021
+      - Launched Figma's component library feature, adopted by 60% of enterprise customers
+      - Built product analytics infrastructure using Amplitude and Mixpanel
+      - Created experimentation framework enabling 3x more A/B tests per quarter
+      - Collaborated with sales team to close $2M in enterprise deals through product demos
+
+      Associate Product Manager | Atlassian | Austin, TX | Aug 2019 - May 2020
+      - Shipped 5 features for Jira's agile board, improving sprint planning efficiency
+      - Analyzed user behavior data to identify and fix top 3 workflow friction points
+      - Wrote PRDs and user stories for engineering team of 6 developers
+
+      Business Analyst | Deloitte Consulting | Houston, TX | July 2017 - July 2019
+      - Advised Fortune 500 clients on digital transformation strategy
+      - Built financial models for technology investment decisions
+      - Led requirements gathering workshops for enterprise software implementations
+
+      EDUCATION
+
+      MBA | McCombs School of Business, UT Austin | 2019
+      - Concentration: Technology Commercialization
+      - Product Management Club President
+
+      B.S. in Economics | Rice University | 2017
+      - Minor: Computer Science
+      - Cum Laude
+
+      SKILLS
+
+      Product: Roadmapping, user research, A/B testing, analytics, pricing strategy,
+        go-to-market planning, competitive analysis
+      Tools: Figma, Notion, Jira, Amplitude, Mixpanel, Looker, SQL, Python (basic),
+        Miro, Dovetail
+      Methodologies: Agile, Scrum, Jobs-to-be-Done, Design Thinking, OKRs
+      Domain: B2B SaaS, collaboration tools, productivity software, developer tools
+
+      CERTIFICATIONS
+      - Pragmatic Institute Certified Product Manager
+      - Google Analytics Certified
+      - Reforge Product Strategy Program (2023)
+
+      ACHIEVEMENTS
+      - Product Hunt: #3 Product of the Day for Notion real-time features launch
+      - Speaker at ProductCon Austin 2023: "Building Products for the Async Workforce"
+      - Featured in First Round Review: "How We Prioritize Features at Notion"
+
+      INTERESTS
+      - Angel investor in 3 early-stage B2B SaaS startups
+      - Mentor at Austin Product Meetup
+      - Avid rock climber and amateur coffee roaster
