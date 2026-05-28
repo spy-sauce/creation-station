@@ -1,0 +1,7 @@
+# Ignore all run output files
+*.json
+*.log
+
+# But keep this gitignore
+!.gitignore
+!.gitkeep
