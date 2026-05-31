@@ -1,0 +1,138 @@
+
+> frontend@0.0.0 dev
+> vite
+
+4:37:26 PM [vite] (client) Re-optimizing dependencies because vite config has changed
+
+  VITE v8.0.3  ready in 139 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+4:42:30 PM [vite] (client) hmr update /src/index.css
+4:42:59 PM [vite] (client) hmr update /src/pages/Landing.jsx, /src/index.css
+4:43:21 PM [vite] (client) hmr update /src/pages/Landing.jsx, /src/index.css
+4:43:31 PM [vite] (client) hmr update /src/pages/Landing.jsx, /src/index.css
+4:43:36 PM [vite] (client) hmr update /src/pages/Landing.jsx, /src/index.css
+4:43:50 PM [vite] (client) hmr update /src/pages/Landing.jsx, /src/index.css
+4:52:36 PM [vite] http proxy error: /api/v1/auth/request-link
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1122:18)
+    at afterConnectMultiple (node:net:1689:7)
+4:53:28 PM [vite] (client) hmr update /src/index.css, /src/context/AuthContext.jsx, /src/pages/Login.jsx, /src/pages/VerifyAuth.jsx, /src/pages/Onboarding.jsx, /src/pages/Overview.jsx
+4:53:28 PM [vite] (client) Pre-transform error: Failed to resolve import "./mock" from "src/lib/api.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /Users/spy/mfautomation/repos/creation-station/reverse-search/frontend/src/lib/api.js:8:22
+  5  |  */
+  6  |  import { routes } from "./routes";
+  7  |  import * as mock from "./mock";
+     |                         ^
+  8  |  // In dev, Vite proxies /api → http://localhost:8000
+  9  |  // In prod, set VITE_API_URL to the full backend URL
+4:53:28 PM [vite] (client) Pre-transform error: Failed to resolve import "./mock" from "src/lib/api.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /Users/spy/mfautomation/repos/creation-station/reverse-search/frontend/src/lib/api.js:8:22
+  5  |  */
+  6  |  import { routes } from "./routes";
+  7  |  import * as mock from "./mock";
+     |                         ^
+  8  |  // In dev, Vite proxies /api → http://localhost:8000
+  9  |  // In prod, set VITE_API_URL to the full backend URL
+4:53:28 PM [vite] Internal server error: Failed to resolve import "./mock" from "src/lib/api.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /Users/spy/mfautomation/repos/creation-station/reverse-search/frontend/src/lib/api.js:8:22
+  5  |  */
+  6  |  import { routes } from "./routes";
+  7  |  import * as mock from "./mock";
+     |                         ^
+  8  |  // In dev, Vite proxies /api → http://localhost:8000
+  9  |  // In prod, set VITE_API_URL to the full backend URL
+      at TransformPluginContext._formatLog (file:///Users/spy/mfautomation/repos/creation-station/reverse-search/frontend/node_modules/vite/dist/node/chunks/node.js:30259:39)
+      at TransformPluginContext.error (file:///Users/spy/mfautomation/repos/creation-station/reverse-search/frontend/node_modules/vite/dist/node/chunks/node.js:30256:14)
+      at normalizeUrl (file:///Users/spy/mfautomation/repos/creation-station/reverse-search/frontend/node_modules/vite/dist/node/chunks/node.js:27544:18)
+      at async file:///Users/spy/mfautomation/repos/creation-station/reverse-search/frontend/node_modules/vite/dist/node/chunks/node.js:27607:30
+      at async Promise.all (index 1)
+      at async TransformPluginContext.transform (file:///Users/spy/mfautomation/repos/creation-station/reverse-search/frontend/node_modules/vite/dist/node/chunks/node.js:27575:4)
+      at async EnvironmentPluginContainer.transform (file:///Users/spy/mfautomation/repos/creation-station/reverse-search/frontend/node_modules/vite/dist/node/chunks/node.js:30048:14)
+      at async loadAndTransform (file:///Users/spy/mfautomation/repos/creation-station/reverse-search/frontend/node_modules/vite/dist/node/chunks/node.js:24177:26)
+4:53:28 PM [vite] (client) Pre-transform error: Failed to resolve import "./mock" from "src/lib/api.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /Users/spy/mfautomation/repos/creation-station/reverse-search/frontend/src/lib/api.js:8:22
+  5  |  */
+  6  |  import { routes } from "./routes";
+  7  |  import * as mock from "./mock";
+     |                         ^
+  8  |  // In dev, Vite proxies /api → http://localhost:8000
+  9  |  // In prod, set VITE_API_URL to the full backend URL
+4:53:28 PM [vite] (client) Pre-transform error: Failed to resolve import "./mock" from "src/lib/api.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /Users/spy/mfautomation/repos/creation-station/reverse-search/frontend/src/lib/api.js:8:22
+  5  |  */
+  6  |  import { routes } from "./routes";
+  7  |  import * as mock from "./mock";
+     |                         ^
+  8  |  // In dev, Vite proxies /api → http://localhost:8000
+  9  |  // In prod, set VITE_API_URL to the full backend URL
+4:53:28 PM [vite] (client) Pre-transform error: Failed to resolve import "./mock" from "src/lib/api.js". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /Users/spy/mfautomation/repos/creation-station/reverse-search/frontend/src/lib/api.js:8:22
+  5  |  */
+  6  |  import { routes } from "./routes";
+  7  |  import * as mock from "./mock";
+     |                         ^
+  8  |  // In dev, Vite proxies /api → http://localhost:8000
+  9  |  // In prod, set VITE_API_URL to the full backend URL
+4:53:28 PM [vite] (client) [console.error] [vite] Failed to reload /src/pages/Overview.jsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+4:53:28 PM [vite] (client) [console.error] [vite] Failed to reload /src/pages/Onboarding.jsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+4:53:28 PM [vite] (client) [console.error] [vite] Failed to reload /src/pages/VerifyAuth.jsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+4:53:28 PM [vite] (client) [console.error] [vite] Failed to reload /src/pages/Login.jsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+4:53:28 PM [vite] (client) [console.error] [vite] Failed to reload /src/context/AuthContext.jsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+4:54:35 PM [vite] (client) hmr update /src/context/AuthContext.jsx, /src/pages/Login.jsx, /src/pages/VerifyAuth.jsx, /src/pages/Onboarding.jsx, /src/pages/Overview.jsx
+4:54:35 PM [vite] (client) hmr invalidate /src/context/AuthContext.jsx Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+4:54:35 PM [vite] (client) hmr update /src/App.jsx, /src/pages/Login.jsx, /src/pages/VerifyAuth.jsx, /src/pages/Onboarding.jsx, /src/pages/Overview.jsx, /src/components/TopBar.jsx
+4:55:06 PM [vite] (client) hmr update /src/index.css, /src/context/AuthContext.jsx, /src/pages/Login.jsx, /src/pages/VerifyAuth.jsx, /src/pages/Onboarding.jsx, /src/pages/Overview.jsx
+4:55:06 PM [vite] (client) hmr invalidate /src/context/AuthContext.jsx Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+4:55:06 PM [vite] (client) hmr update /src/App.jsx, /src/pages/Login.jsx, /src/pages/VerifyAuth.jsx, /src/pages/Onboarding.jsx, /src/pages/Overview.jsx, /src/components/TopBar.jsx
+
+> frontend@0.0.0 dev
+> vite
+
+
+  VITE v8.0.3  ready in 118 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+4:56:54 PM [vite] (client) hmr update /src/pages/Landing.jsx, /src/index.css
+4:56:58 PM [vite] (client) hmr update /src/pages/Landing.jsx, /src/index.css
+4:57:02 PM [vite] (client) hmr update /src/pages/Landing.jsx, /src/index.css
+4:57:06 PM [vite] (client) hmr update /src/pages/Landing.jsx, /src/index.css
+4:57:13 PM [vite] (client) hmr update /src/pages/Landing.jsx, /src/index.css
+4:57:17 PM [vite] (client) hmr update /src/pages/Login.jsx, /src/index.css
+4:57:22 PM [vite] (client) hmr update /src/pages/Login.jsx, /src/index.css
+4:57:26 PM [vite] (client) hmr update /src/pages/Login.jsx, /src/index.css
+4:57:38 PM [vite] (client) hmr update /src/pages/Onboarding.jsx, /src/index.css
+4:57:42 PM [vite] (client) hmr update /src/pages/Onboarding.jsx, /src/index.css
+4:58:12 PM [vite] (client) hmr update /src/pages/Onboarding.jsx, /src/index.css
+4:58:12 PM [vite] (client) hmr update /src/pages/Overview.jsx, /src/index.css
+4:58:25 PM [vite] (client) hmr update /src/pages/Settings.jsx, /src/index.css
+4:58:36 PM [vite] (client) hmr update /src/pages/Candidates.jsx, /src/index.css
+4:58:41 PM [vite] (client) hmr update /src/index.css, /src/context/AuthContext.jsx, /src/pages/Login.jsx, /src/pages/VerifyAuth.jsx, /src/pages/Onboarding.jsx, /src/pages/Overview.jsx
+4:58:41 PM [vite] (client) hmr invalidate /src/context/AuthContext.jsx Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+4:58:41 PM [vite] (client) hmr update /src/App.jsx, /src/pages/Login.jsx, /src/pages/VerifyAuth.jsx, /src/pages/Onboarding.jsx, /src/pages/Overview.jsx, /src/components/TopBar.jsx
+4:58:46 PM [vite] (client) hmr update /src/index.css, /src/context/AuthContext.jsx, /src/pages/Login.jsx, /src/pages/VerifyAuth.jsx, /src/pages/Onboarding.jsx, /src/pages/Overview.jsx
+4:58:46 PM [vite] (client) hmr invalidate /src/context/AuthContext.jsx Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+4:58:46 PM [vite] (client) hmr update /src/App.jsx, /src/pages/Login.jsx, /src/pages/VerifyAuth.jsx, /src/pages/Onboarding.jsx, /src/pages/Overview.jsx, /src/components/TopBar.jsx
+4:58:50 PM [vite] (client) hmr update /src/index.css, /src/context/AuthContext.jsx, /src/pages/Login.jsx, /src/pages/VerifyAuth.jsx, /src/pages/Onboarding.jsx, /src/pages/Overview.jsx
+4:58:50 PM [vite] (client) hmr invalidate /src/context/AuthContext.jsx Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+4:58:50 PM [vite] (client) hmr update /src/App.jsx, /src/pages/Login.jsx, /src/pages/VerifyAuth.jsx, /src/pages/Onboarding.jsx, /src/pages/Overview.jsx, /src/components/TopBar.jsx
+4:58:56 PM [vite] (client) hmr update /src/index.css, /src/context/AuthContext.jsx, /src/pages/Login.jsx, /src/pages/VerifyAuth.jsx, /src/pages/Onboarding.jsx, /src/pages/Overview.jsx
+4:58:56 PM [vite] (client) hmr invalidate /src/context/AuthContext.jsx Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+4:58:56 PM [vite] (client) hmr update /src/App.jsx, /src/pages/Login.jsx, /src/pages/VerifyAuth.jsx, /src/pages/Onboarding.jsx, /src/pages/Overview.jsx, /src/components/TopBar.jsx
+4:59:11 PM [vite] (client) hmr update /src/index.css, /src/context/AuthContext.jsx, /src/pages/Login.jsx, /src/pages/VerifyAuth.jsx, /src/pages/Onboarding.jsx, /src/pages/Overview.jsx
+4:59:11 PM [vite] (client) hmr invalidate /src/context/AuthContext.jsx Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+4:59:11 PM [vite] (client) hmr update /src/App.jsx, /src/pages/Login.jsx, /src/pages/VerifyAuth.jsx, /src/pages/Onboarding.jsx, /src/pages/Overview.jsx, /src/components/TopBar.jsx
+4:59:21 PM [vite] (client) hmr update /src/index.css, /src/context/AuthContext.jsx, /src/pages/Login.jsx, /src/pages/VerifyAuth.jsx, /src/pages/Onboarding.jsx, /src/pages/Overview.jsx
+4:59:21 PM [vite] (client) hmr invalidate /src/context/AuthContext.jsx Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+4:59:21 PM [vite] (client) hmr update /src/App.jsx, /src/pages/Login.jsx, /src/pages/VerifyAuth.jsx, /src/pages/Onboarding.jsx, /src/pages/Overview.jsx, /src/components/TopBar.jsx
+4:59:31 PM [vite] (client) hmr update /src/index.css, /src/context/AuthContext.jsx, /src/pages/Login.jsx, /src/pages/VerifyAuth.jsx, /src/pages/Onboarding.jsx, /src/pages/Overview.jsx
+4:59:31 PM [vite] (client) hmr invalidate /src/context/AuthContext.jsx Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+4:59:31 PM [vite] (client) hmr update /src/App.jsx, /src/pages/Login.jsx, /src/pages/VerifyAuth.jsx, /src/pages/Onboarding.jsx, /src/pages/Overview.jsx, /src/components/TopBar.jsx

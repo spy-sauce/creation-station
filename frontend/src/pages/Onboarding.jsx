@@ -137,7 +137,7 @@ function ProfileStep({ onSubmit, loading }) {
       <p className="t-body" style={{ marginBottom: 32 }}>Tell us about yourself so your AI agent knows what to look for.</p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-        <div><label className="input-label">Full Name *</label><input type="text" required placeholder="Sean Young" value={form.name} onChange={(e) => u('name', e.target.value)} className="input" /></div>
+        <div><label className="input-label">Full Name *</label><input type="text" required placeholder="Your full name" value={form.name} onChange={(e) => u('name', e.target.value)} className="input" /></div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <div><label className="input-label">LinkedIn</label><input type="url" placeholder="https://linkedin.com/in/..." value={form.linkedin_url} onChange={(e) => u('linkedin_url', e.target.value)} className="input" /></div>
@@ -152,7 +152,7 @@ function ProfileStep({ onSubmit, loading }) {
         <div className="t-label-gold" style={{ marginBottom: 20 }}>Preferences</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <div><label className="input-label">Locations</label><input type="text" placeholder="Miami, NYC, Remote" value={form.target_locations} onChange={(e) => u('target_locations', e.target.value)} className="input" /></div>
+            <div><label className="input-label">Locations</label><input type="text" placeholder="NYC, SF, Remote" value={form.target_locations} onChange={(e) => u('target_locations', e.target.value)} className="input" /></div>
             <div><label className="input-label">Remote Preference</label><select value={form.remote_preference} onChange={(e) => u('remote_preference', e.target.value)} className="input"><option value="remote_only">Remote Only</option><option value="flexible">Flexible / Hybrid</option><option value="on_site">On-Site</option></select></div>
           </div>
           <div><label className="input-label">Min Compensation (USD/yr)</label><input type="number" placeholder="150000" value={form.min_compensation} onChange={(e) => u('min_compensation', e.target.value)} className="input" /></div>
@@ -178,7 +178,7 @@ function SuccessStep() {
       <div style={{ width: 64, height: 64, borderRadius: '50%', border: '1px solid var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 28px' }}>
         <svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.5" style={{ width: 28, height: 28 }}><path d="M20 6 9 17l-5-5" /></svg>
       </div>
-      <h2 className="t-serif" style={{ fontSize: 28, marginBottom: 12 }}>You're all set, Space Cowboy.</h2>
+      <h2 className="t-serif" style={{ fontSize: 28, marginBottom: 12 }}>You're all set, Welcome.</h2>
       <p className="t-body" style={{ marginBottom: 36 }}>Your AI talent agent is ready. Head to the dashboard to launch your first discovery run.</p>
       <button onClick={() => navigate(routes.overview)} className="btn-primary">Go to dashboard →</button>
     </div>

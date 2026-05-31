@@ -16,3 +16,6 @@ postgres_data/
 node_modules/
 frontend/node_modules/
 frontend/dist/
+.venv-iter6/
+logs/
+.venv*/

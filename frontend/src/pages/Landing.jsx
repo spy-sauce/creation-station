@@ -8,7 +8,7 @@ export default function Landing() {
     <div style={{ background: 'var(--black)' }}>
       {/* Nav */}
       <nav className="ta-nav">
-        <a href="#" className="ta-nav-logo">SY / Talent Agent</a>
+        <a href="#" className="ta-nav-logo">Talent Agent</a>
         <div className="ta-nav-links" style={{ listStyle: 'none' }}>
           <a href="#features" className="ta-nav-link">Features</a>
           <a href="#how" className="ta-nav-link">Process</a>
@@ -17,24 +17,39 @@ export default function Landing() {
       </nav>
 
       {/* Hero */}
-      <section style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '140px 60px 80px', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,168,76,0.12) 0%, transparent 70%)', top: '50%', left: '60%', transform: 'translate(-50%,-50%)', pointerEvents: 'none' }} />
+      <section className="spotlight" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '140px 60px 80px', position: 'relative', overflow: 'hidden' }}>
+        {/* Folio — top-right registration mark */}
+        <div className="folio pulse-gold">
+          <span>Vol. I · No. 01 · MMXXVI</span>
+        </div>
 
-        <p className="fade-in" style={{ fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 32 }}>
-          VibeSpace LLC · Miami, FL
+        {/* Gold halo behind headline */}
+        <div style={{ position: 'absolute', width: 720, height: 720, borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,162,39,0.14) 0%, rgba(201,162,39,0.02) 45%, transparent 70%)', top: '42%', left: '62%', transform: 'translate(-50%,-50%)', pointerEvents: 'none', filter: 'blur(8px)' }} />
+
+        <p className="rise rise-1" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.36em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 36, display: 'flex', alignItems: 'center', gap: 16 }}>
+          <span style={{ display: 'inline-block', width: 28, height: 1, background: 'var(--gold)' }} />
+          Autonomous Talent Operations
         </p>
 
-        <h1 className="fade-in-delay" style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(48px, 7vw, 96px)', lineHeight: 1.05, fontWeight: 700, maxWidth: 800 }}>
-          Your AI<br/><em style={{ fontStyle: 'italic', color: 'var(--gold)' }}>talent agent</em><br/>never sleeps.
+        <h1 className="rise rise-2" style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(52px, 8vw, 116px)', lineHeight: 0.98, fontWeight: 700, maxWidth: 960, letterSpacing: '-0.025em' }}>
+          Your AI<br/>
+          <span className="gold-italic" style={{ fontSize: '1.02em' }}>talent agent</span><br/>
+          never sleeps.
         </h1>
 
-        <p className="fade-in-delay" style={{ fontSize: 17, color: 'var(--muted)', maxWidth: 480, marginTop: 32, lineHeight: 1.8 }}>
+        <p className="rise rise-3" style={{ fontSize: 18, color: 'var(--text-secondary)', maxWidth: 520, marginTop: 40, lineHeight: 1.75, fontWeight: 300 }}>
           Discovers opportunities, tailors every application, and manages your entire pipeline — so you close placements, not paperwork.
         </p>
 
-        <div className="fade-in-delay2" style={{ display: 'flex', gap: 20, marginTop: 52, flexWrap: 'wrap' }}>
+        <div className="rise rise-4" style={{ display: 'flex', gap: 20, marginTop: 56, flexWrap: 'wrap', alignItems: 'center' }}>
           <button onClick={() => navigate(routes.login)} className="btn-primary">Get started →</button>
           <a href="#how" className="btn-ghost">See how it works</a>
+        </div>
+
+        {/* Bottom-edge scroll cue */}
+        <div className="rise rise-5" style={{ position: 'absolute', bottom: 40, left: 60, fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.36em', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 14 }}>
+          <span style={{ display: 'inline-block', width: 1, height: 32, background: 'var(--gold)', opacity: 0.6 }} />
+          Scroll · The agent waits
         </div>
       </section>
 
@@ -53,38 +68,55 @@ export default function Landing() {
         <style>{`@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }`}</style>
       </div>
 
-      {/* Stats */}
-      <section style={{ padding: '120px 60px' }}>
-        <div className="section-label">Platform</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 80, alignItems: 'start' }}>
-          <h2 style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(32px, 4vw, 52px)', lineHeight: 1.15, fontWeight: 400 }}>
-            24/7 autonomous<br />talent pipeline<br /><strong style={{ fontWeight: 700 }}>that works.</strong>
+      {/* Manifesto + Stats */}
+      <section style={{ padding: '140px 60px 120px', position: 'relative' }}>
+        <div className="rule-with-type"><span>§ I · Platform</span></div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 96, alignItems: 'start' }}>
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(36px, 4.6vw, 64px)', lineHeight: 1.06, fontWeight: 400, letterSpacing: '-0.02em' }}>
+            24/7 autonomous<br />talent pipeline<br />
+            <strong style={{ fontWeight: 700, fontStyle: 'italic' }}>that works.</strong>
           </h2>
-          <p style={{ fontSize: 16, color: 'var(--muted)', lineHeight: 1.9 }}>
+
+          <p className="dropcap" style={{ fontSize: 17, color: 'var(--text-secondary)', lineHeight: 1.85, fontWeight: 300, maxWidth: 520 }}>
             Talent Agent is your AI-powered recruiting system. It crawls thousands of sources daily, scores every role across multiple dimensions, tailors resumes, researches companies, finds hiring managers, and composes personalized outreach — all on autopilot. You review and approve. It handles the rest.
           </p>
         </div>
 
-        <div className="grid-border" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginTop: 60 }}>
+        {/* Pull quote */}
+        <blockquote className="pull-quote" style={{ margin: '80px auto 0', maxWidth: 820 }}>
+          "The best agents don't replace the recruiter — they buy back the hours that should have been spent connecting with humans."
+          <cite>— The operator's principle</cite>
+        </blockquote>
+
+        {/* Stats — large italic figure numbers */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0, marginTop: 100, borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
           {[
-            { num: '24/7', label: 'Autonomous pipeline' },
-            { num: '10x', label: 'Faster applications' },
-            { num: '500+', label: 'Candidates per agency' },
-          ].map((s) => (
-            <div key={s.label} style={{ padding: '32px 28px' }}>
-              <div className="stat-num">{s.num}</div>
-              <div className="stat-label">{s.label}</div>
+            { num: '24', sup: '/ 7', label: 'Autonomous pipeline' },
+            { num: '10', sup: '×', label: 'Faster applications' },
+            { num: '500', sup: '+', label: 'Candidates per agency' },
+          ].map((s, i) => (
+            <div key={s.label} style={{ padding: '44px 36px', borderLeft: i === 0 ? 'none' : '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <span className="fig-num">{s.num}<sup>{s.sup}</sup></span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                {s.label}
+              </span>
             </div>
           ))}
         </div>
       </section>
 
       {/* Features */}
-      <section id="features" style={{ padding: '120px 60px', background: 'var(--surface)' }}>
-        <div className="section-label">Features</div>
-        <h2 style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(36px, 4vw, 56px)', fontWeight: 700, lineHeight: 1.1, marginBottom: 60 }}>
-          What it does<br/>for you.
-        </h2>
+      <section id="features" style={{ padding: '140px 60px', background: 'var(--bg-secondary)', position: 'relative' }}>
+        <div className="rule-with-type"><span>§ II · Capabilities</span></div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'end', marginBottom: 72, gap: 48 }}>
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(40px, 5.2vw, 76px)', fontWeight: 700, lineHeight: 1.0, letterSpacing: '-0.025em' }}>
+            What it does<br/><span className="gold-italic">for you.</span>
+          </h2>
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--text-muted)', maxWidth: 200, lineHeight: 1.9, textAlign: 'right' }}>
+            Six concentrated functions<br/>One unattended loop
+          </p>
+        </div>
 
         <div className="grid-border" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
           {[
@@ -108,8 +140,8 @@ export default function Landing() {
       </section>
 
       {/* How it works */}
-      <section id="how" style={{ padding: '120px 60px' }}>
-        <div className="section-label">Process</div>
+      <section id="how" style={{ padding: '140px 60px', position: 'relative' }}>
+        <div className="rule-with-type"><span>§ III · Process</span></div>
         <div style={{ maxWidth: 680 }}>
           {[
             { title: 'Onboard candidates', desc: 'Upload resumes and context. AI builds multi-dimensional identity profiles — skills, projects, philosophy, ambitions.' },
@@ -133,26 +165,34 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section style={{ padding: '120px 60px', background: 'var(--surface)' }}>
-        <div style={{ maxWidth: 720, margin: '0 auto', textAlign: 'center' }}>
-          <h2 style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(40px, 6vw, 72px)', fontWeight: 700, lineHeight: 1.1, marginBottom: 24 }}>
-            Let's build something<br/><em style={{ fontStyle: 'italic', color: 'var(--gold)' }}>real.</em>
+      {/* CTA — colophon-style closer */}
+      <section className="spotlight" style={{ padding: '160px 60px 140px', background: 'var(--bg-secondary)', position: 'relative', overflow: 'hidden', borderTop: '1px solid var(--border)' }}>
+        <div style={{ maxWidth: 880, margin: '0 auto', textAlign: 'center' }}>
+          <div className="rule-with-type" style={{ justifyContent: 'center', marginBottom: 48 }}>
+            <span>§ IV · Colophon</span>
+          </div>
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(44px, 7vw, 88px)', fontWeight: 700, lineHeight: 1.0, letterSpacing: '-0.03em', marginBottom: 32 }}>
+            Let's build something<br/><span className="gold-italic">real.</span>
           </h2>
-          <p style={{ color: 'var(--muted)', fontSize: 16, marginBottom: 52 }}>
-            Your next hire is already out there. Let your AI agent find them.
+          <p style={{ color: 'var(--text-secondary)', fontSize: 18, marginBottom: 64, fontWeight: 300, lineHeight: 1.7, maxWidth: 560, marginLeft: 'auto', marginRight: 'auto' }}>
+            Your next hire is already out there. Let your AI agent find them — and bring the receipts.
           </p>
-          <button onClick={() => navigate(routes.login)} className="btn-primary">Get started →</button>
+          <button onClick={() => navigate(routes.login)} className="btn-primary" style={{ fontSize: 14, padding: '20px 44px' }}>
+            Get started →
+          </button>
+          <p style={{ marginTop: 56, fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.36em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+            Set in Playfair Display & DM Sans
+          </p>
         </div>
       </section>
 
       {/* Footer */}
       <footer className="ta-footer">
         <span style={{ fontFamily: 'var(--mono)', fontSize: 12, letterSpacing: '0.15em', color: 'var(--muted)' }}>
-          Sean Young · VibeSpace LLC © {new Date().getFullYear()}
+          Talent Agent © {new Date().getFullYear()}
         </span>
         <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'rgba(244,241,235,0.2)', letterSpacing: '0.1em' }}>
-          Miami, FL · Built different.
+          Discover · Tailor · Apply · Track
         </span>
       </footer>
     </div>

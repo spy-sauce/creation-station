@@ -1,0 +1,87 @@
+
+╭─────────────────────────────────────────╮
+│                                         │
+│   🍄 Mycelium — The network provides.   │
+│                                         │
+╰─────────────────────────────────────────╯
+
+  dashboard serving at http://localhost:3334
+  ctrl+c to stop
+  GET / 200 10ms
+  GET / 200 8ms
+  GET /favicon.ico 404 0ms
+  GET / 200 6ms
+  GET / 200 7ms
+  GET / 200 7ms
+  GET / 200 3ms
+  GET / 200 7ms
+  GET / 200 7ms
+  GET / 200 2ms
+  GET /favicon.ico 404 1ms
+  GET / 200 4ms
+  GET /favicon.ico 404 0ms
+  GET / 200 2ms
+  GET /favicon.ico 404 0ms
+  GET / 200 4ms
+  GET / 200 3ms
+  GET /favicon.ico 404 0ms
+  GET /state.json 200 1ms
+  HEAD / 404 0ms
+  GET /state.json 200 0ms
+  GET / 200 1ms
+  GET / 200 1ms
+  GET / 200 2ms
+  GET / 200 1ms
+  GET / 200 2ms
+  HEAD /state.json 404 0ms
+  GET /state.json 200 0ms
+  GET /state.json 200 0ms
+  GET /state.json 200 0ms
+  HEAD /state.json 404 0ms
+  GET / 200 6ms
+  GET / 200 4ms
+  GET / 200 4ms
+  GET / 200 6ms
+  GET / 200 6ms
+  GET / 200 6ms
+  GET /favicon.ico 404 1ms
+  GET /state.json 200 1ms
+  GET / 200 2ms
+  GET / 200 1ms
+  GET / 200 1ms
+  GET / 200 1ms
+  GET / 200 2ms
+  GET / 200 2ms
+  GET / 200 1ms
+  GET / 200 5ms
+  GET /favicon.ico 404 0ms
+  GET / 200 1ms
+  GET / 200 2ms
+  GET / 200 2ms
+  GET / 200 2ms
+  GET /.well-known/appspecific/com.chrome.devtools.json 404 0ms
+  GET / 200 3ms
+  GET /.well-known/appspecific/com.chrome.devtools.json 404 0ms
+  GET / 200 5ms
+  GET /.well-known/appspecific/com.chrome.devtools.json 404 1ms
+  GET / 200 4ms
+  GET /.well-known/appspecific/com.chrome.devtools.json 404 0ms
+  GET / 200 6ms
+  GET /.well-known/appspecific/com.chrome.devtools.json 404 1ms
+  GET / 200 5ms
+  GET /.well-known/appspecific/com.chrome.devtools.json 404 0ms
+  GET /favicon.ico 404 0ms
+  GET / 200 1ms
+  GET / 200 2ms
+  GET / 200 4ms
+  GET /.well-known/appspecific/com.chrome.devtools.json 404 0ms
+  GET / 200 3ms
+  GET /.well-known/appspecific/com.chrome.devtools.json 404 0ms
+  GET /favicon.ico 404 0ms
+  GET / 200 3ms
+  GET /.well-known/appspecific/com.chrome.devtools.json 404 1ms
+  GET /favicon.ico 404 1ms
+  GET / 200 5ms
+  GET /favicon.ico 404 0ms
+
+  shutting down...

@@ -2,13 +2,13 @@ import { Building2, User, Bell, Key } from 'lucide-react'
 
 const sections = [
   { icon: Building2, title: 'Agency Profile', description: 'Manage your agency name, logo, and contact information.', fields: [
-    { label: 'Agency Name', value: 'VibeSpace LLC', type: 'text' },
-    { label: 'Contact Email', value: 'spy@seanyoung.biz', type: 'email' },
-    { label: 'Website', value: 'https://seanyoung.biz', type: 'url' },
+    { label: 'Agency Name', value: 'Acme Talent Co.', type: 'text' },
+    { label: 'Contact Email', value: 'hello@example.com', type: 'email' },
+    { label: 'Website', value: 'https://example.com', type: 'url' },
   ]},
   { icon: User, title: 'Account', description: 'Your personal account settings.', fields: [
-    { label: 'Full Name', value: 'Sean Young', type: 'text' },
-    { label: 'Email', value: 'spy@seanyoung.biz', type: 'email' },
+    { label: 'Full Name', value: 'Alex Morgan', type: 'text' },
+    { label: 'Email', value: 'alex@example.com', type: 'email' },
     { label: 'Role', value: 'Admin', type: 'text', disabled: true },
   ]},
   { icon: Bell, title: 'Notifications', description: 'Configure when and how you get notified.', toggles: [

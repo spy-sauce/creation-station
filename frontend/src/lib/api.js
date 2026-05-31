@@ -5,10 +5,15 @@
  */
 
 import { routes } from './routes'
+import * as mock from './mock'
 
 // In dev, Vite proxies /api → http://localhost:8000
 // In prod, set VITE_API_URL to the full backend URL
 const API_BASE = import.meta.env.VITE_API_URL || '/api/v1'
+
+// Mock mode: when VITE_MOCK=true the client short-circuits all network calls
+// with seeded fixture data so the dashboard is navigable without a live backend.
+const USE_MOCK = import.meta.env.VITE_MOCK === 'true'
 
 /**
  * Get the stored JWT token.
@@ -73,91 +78,81 @@ async function request(path, options = {}) {
 // Per NUTRIENTS.md API_CONTRACTS §Auth Endpoints
 
 export async function requestMagicLink(email) {
-  return request('/auth/request-link', {
-    method: 'POST',
-    body: JSON.stringify({ email }),
-  })
+  if (USE_MOCK) return mock.requestMagicLink(email)
+  return request('/auth/request-link', { method: 'POST', body: JSON.stringify({ email }) })
 }
 
 export async function verifyMagicLink(token) {
-  return request('/auth/verify', {
-    method: 'POST',
-    body: JSON.stringify({ token }),
-  })
+  if (USE_MOCK) return mock.verifyMagicLink(token)
+  return request('/auth/verify', { method: 'POST', body: JSON.stringify({ token }) })
 }
 
 export async function getMe() {
+  if (USE_MOCK) return mock.getMe()
   return request('/auth/me')
 }
 
 // ─── Onboarding ───────────────────────────────────────────────────────────────
-// Per NUTRIENTS.md API_CONTRACTS §Onboarding Endpoints
 
 export async function uploadResume(file) {
+  if (USE_MOCK) return mock.uploadResume(file)
   const formData = new FormData()
   formData.append('file', file)
-  return request('/onboarding/resume', {
-    method: 'POST',
-    body: formData,
-  })
+  return request('/onboarding/resume', { method: 'POST', body: formData })
 }
 
 export async function saveProfile(profile) {
-  return request('/onboarding/profile', {
-    method: 'POST',
-    body: JSON.stringify(profile),
-  })
+  if (USE_MOCK) return mock.saveProfile(profile)
+  return request('/onboarding/profile', { method: 'POST', body: JSON.stringify(profile) })
 }
 
 export async function getOnboardingStatus() {
+  if (USE_MOCK) return mock.getOnboardingStatus()
   return request('/onboarding/status')
 }
 
 // ─── Discovery ────────────────────────────────────────────────────────────────
-// Per NUTRIENTS.md API_CONTRACTS §Discovery Endpoints
 
 export async function triggerDiscovery(candidateId, dryRun = false) {
-  return request('/discovery/trigger', {
-    method: 'POST',
-    body: JSON.stringify({ candidate_id: candidateId, dry_run: dryRun }),
-  })
+  if (USE_MOCK) return mock.triggerDiscovery(candidateId, dryRun)
+  return request('/discovery/trigger', { method: 'POST', body: JSON.stringify({ candidate_id: candidateId, dry_run: dryRun }) })
 }
 
 export async function getDigest(digestId) {
+  if (USE_MOCK) return mock.getDigest(digestId)
   return request(`/discovery/digest/${digestId}`)
 }
 
 export async function getLatestDigest(candidateId) {
+  if (USE_MOCK) return mock.getLatestDigest(candidateId)
   return request(`/discovery/digest/${candidateId}`)
 }
 
 export async function getDiscoveryStats(candidateId) {
+  if (USE_MOCK) return mock.getDiscoveryStats(candidateId)
   return request(`/discovery/stats/${candidateId}`)
 }
 
 export async function triggerDiscoveryRun(candidateId, dryRun = false) {
-  return request(`/discovery/run/${candidateId}?dry_run=${dryRun}`, {
-    method: 'POST',
-  })
+  if (USE_MOCK) return mock.triggerDiscoveryRun(candidateId, dryRun)
+  return request(`/discovery/run/${candidateId}?dry_run=${dryRun}`, { method: 'POST' })
 }
 
 // ─── Application ──────────────────────────────────────────────────────────────
-// Per NUTRIENTS.md API_CONTRACTS §Application Endpoints
 
 export async function startApplication(jobId, candidateId) {
-  return request('/application/start', {
-    method: 'POST',
-    body: JSON.stringify({ job_id: jobId, candidate_id: candidateId }),
-  })
+  if (USE_MOCK) return mock.startApplication(jobId, candidateId)
+  return request('/application/start', { method: 'POST', body: JSON.stringify({ job_id: jobId, candidate_id: candidateId }) })
 }
 
 export async function submitApplication(pipelineId) {
-  return request(`/application/submit/${pipelineId}`, {
-    method: 'POST',
-  })
+  if (USE_MOCK) return mock.submitApplication(pipelineId)
+  return request(`/application/submit/${pipelineId}`, { method: 'POST' })
 }
 
-export async function listApplications({ candidateId, status, limit = 50, offset = 0 } = {}) {
+export async function listApplications(opts = {}) {
+  if (USE_MOCK) return mock.listApplications(opts)
+  const { candidateId, status, limit = 50, offset = 0 } = opts
   const params = new URLSearchParams()
   if (candidateId) params.append('candidate_id', candidateId)
   if (status) params.append('status', status)
@@ -167,33 +162,31 @@ export async function listApplications({ candidateId, status, limit = 50, offset
 }
 
 export async function getPipeline(pipelineId) {
+  if (USE_MOCK) return mock.getPipeline(pipelineId)
   return request(`/application/${pipelineId}`)
 }
 
 // ─── Review ───────────────────────────────────────────────────────────────────
-// Per NUTRIENTS.md API_CONTRACTS §Review Endpoints
 
 export async function getReviewQueue(candidateId = null) {
+  if (USE_MOCK) return mock.getReviewQueue(candidateId)
   const params = candidateId ? `?candidate_id=${candidateId}` : ''
   return request(`/review/queue${params}`)
 }
 
 export async function approvePipeline(pipelineId) {
-  return request(`/review/${pipelineId}/approve`, {
-    method: 'POST',
-  })
+  if (USE_MOCK) return mock.approvePipeline(pipelineId)
+  return request(`/review/${pipelineId}/approve`, { method: 'POST' })
 }
 
 export async function rejectPipeline(pipelineId, reason = null) {
-  return request(`/review/${pipelineId}/reject`, {
-    method: 'POST',
-    body: JSON.stringify({ reason }),
-  })
+  if (USE_MOCK) return mock.rejectPipeline(pipelineId, reason)
+  return request(`/review/${pipelineId}/reject`, { method: 'POST', body: JSON.stringify({ reason }) })
 }
 
 // ─── Health ───────────────────────────────────────────────────────────────────
-// Per NUTRIENTS.md API_CONTRACTS §Health Endpoint
 
 export async function getHealth() {
+  if (USE_MOCK) return mock.getHealth()
   return request('/health')
 }

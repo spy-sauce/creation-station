@@ -54,7 +54,7 @@ export default function Login() {
         {/* Brand */}
         <div style={{ textAlign: 'center', marginBottom: 56 }}>
           <a href="/" className="t-label-gold" style={{ textDecoration: 'none', display: 'inline-block', marginBottom: 40 }}>
-            SY / Talent Agent
+            Talent Agent
           </a>
           <h1 className="t-serif" style={{ fontSize: 'clamp(36px, 5vw, 48px)', marginBottom: 12 }}>
             Welcome back.
@@ -73,7 +73,7 @@ export default function Login() {
                   type="email"
                   required
                   autoFocus
-                  placeholder="spy@seanyoung.biz"
+                  placeholder="you@company.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="input"
@@ -135,7 +135,7 @@ export default function Login() {
         {/* Footer */}
         <div style={{ textAlign: 'center', marginTop: 48 }}>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.15em', color: 'rgba(244,241,235,0.15)' }}>
-            VIBESPACE LLC · THE DOT CONNECTOR · MIAMI, FL
+TALENT AGENT · AUTONOMOUS RECRUITING PLATFORM
           </span>
         </div>
       </div>

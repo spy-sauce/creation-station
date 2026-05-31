@@ -7,7 +7,7 @@ const mockCandidates = [
   { id: 2, name: 'Aisha Patel', title: 'VP of Engineering', location: 'New York, NY', status: 'active', roles: 22, applied: 9, interviews: 3, added: 'Mar 12' },
   { id: 3, name: 'Jordan Williams', title: 'Staff Software Engineer', location: 'Austin, TX', status: 'active', roles: 18, applied: 7, interviews: 1, added: 'Mar 10' },
   { id: 4, name: 'Sarah Kim', title: 'Head of AI/ML', location: 'Seattle, WA', status: 'reviewing', roles: 8, applied: 3, interviews: 1, added: 'Mar 8' },
-  { id: 5, name: 'Dev Okonkwo', title: 'Platform Lead', location: 'Miami, FL', status: 'active', roles: 11, applied: 4, interviews: 0, added: 'Mar 5' },
+  { id: 5, name: 'Dev Okonkwo', title: 'Platform Lead', location: 'Portland, OR', status: 'active', roles: 11, applied: 4, interviews: 0, added: 'Mar 5' },
   { id: 6, name: 'Lisa Zhang', title: 'Engineering Manager', location: 'Los Angeles, CA', status: 'active', roles: 16, applied: 8, interviews: 2, added: 'Mar 3' },
   { id: 7, name: 'Carlos Rivera', title: 'Principal Engineer', location: 'Chicago, IL', status: 'paused', roles: 5, applied: 2, interviews: 0, added: 'Feb 28' },
   { id: 8, name: 'Emily Nguyen', title: 'Sr. Backend Engineer', location: 'Denver, CO', status: 'active', roles: 20, applied: 10, interviews: 4, added: 'Feb 25' },
