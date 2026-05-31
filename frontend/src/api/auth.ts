@@ -172,6 +172,30 @@ export async function verifyToken(token: string): Promise<VerifyResult> {
 }
 
 /**
+ * Get the current authenticated user.
+ *
+ * Fetches fresh user data from the backend. Unlike refreshSession(), this does
+ * not short-circuit on a missing token — callers are expected to guard on the
+ * presence of a token themselves (e.g. AuthContext checks getToken() first).
+ *
+ * Per NUTRIENTS.md API_CONTRACTS:
+ * - Endpoint: GET /api/v1/auth/me
+ * - Error 401: "Not authenticated" — JWT missing or invalid (triggers redirect)
+ *
+ * @returns Current user data
+ * @throws TalentAgentApiError on API errors (401 triggers redirect via apiClient)
+ *
+ * @example
+ * ```ts
+ * const user = await getMe()
+ * // user.candidate_id, user.is_onboarded, etc.
+ * ```
+ */
+export async function getMe(): Promise<AuthUser> {
+  return apiClient.get<AuthUser>('/auth/me')
+}
+
+/**
  * Refresh the current session by fetching fresh user data.
  *
  * Used to validate that the stored JWT is still valid and to

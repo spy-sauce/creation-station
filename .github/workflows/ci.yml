@@ -1,0 +1,217 @@
+# Copyright 2026 VibeSpace LLC
+# Licensed under the Apache License, Version 2.0
+#
+# Talent Agent — CI pipeline (SKELETON / iter-6)
+# ------------------------------------------------------------------
+# This pipeline gates merges and lays the road toward cloud deployment
+# (Cloudflare / Vultr). It is intentionally a SKELETON:
+#   - Jobs `backend-lint-type`, `backend-unit`, and `frontend-build-test`
+#     run REAL checks against code that is exercisable without a live stack.
+#   - Job `backend-integration` is a documented PLACEHOLDER. It boots the
+#     real postgres:15 + redis:7 service containers (so the wiring is proven)
+#     but does NOT yet run integration tests — the backend runtime decision
+#     is pending. It prints an explicit "pending" message and exits 0 so the
+#     gap is visible, NOT a silently-passing fake.
+# See .github/workflows/README.md for the full real-vs-scaffold breakdown
+# and the TODO list to reach full CI.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------
+  # REAL: Python syntax / lint gate.
+  # No ruff/flake8/black config exists in the repo (no pyproject.toml,
+  # setup.cfg, .flake8, or ruff.toml), so we do NOT invent a linter.
+  # `compileall` is a minimal, dependency-light syntax gate over the
+  # backend package. requirements.txt is installed first per the CI
+  # charter so the environment matches the other backend jobs.
+  # ---------------------------------------------------------------
+  backend-lint-type:
+    name: backend-lint-type (syntax gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Compile backend (syntax gate)
+        # `python -m compileall` byte-compiles every module and fails on any
+        # SyntaxError. This is the agreed minimal gate until a linter is
+        # configured (see README TODO: add ruff + config, then swap this step).
+        run: python -m compileall backend/
+
+  # ---------------------------------------------------------------
+  # REAL: offline backend unit tests.
+  # Runs the synthetics test suite, which is the known offline-capable set
+  # (tests use mocks; no live DB / Redis / Claude required).
+  #
+  # Two things make this job correct in a clean CI runner:
+  #   1. tests/conftest.py imports `backend.main` at collection time, which
+  #      imports backend/config.py. Settings has REQUIRED fields with no
+  #      defaults (database_url, redis_url, anthropic_api_key) and there is
+  #      no .env in CI, so without the env block below collection would die
+  #      with a pydantic ValidationError. The dummy values below satisfy
+  #      import-time validation only; nothing connects to a real service.
+  #   2. tests/synthetics/test_cli.py::TestMain::test_run_crawler_not_implemented
+  #      is a STALE iter-5 test that asserts the crawler is "not implemented"
+  #      and makes LIVE network calls to greenhouse/lever/ashby. It is
+  #      network-dependent and currently fails because the crawler now runs.
+  #      We deselect it here so CI stays deterministic and offline. This is
+  #      tracked in the README TODO ("repair stale iter-5 crawler test") —
+  #      it is deselected, not hidden to fake a green run.
+  #
+  # Full backend test wiring (api/, application/, discovery/, scheduler/
+  # suites, which need a live DB/Redis) is pending the runtime decision and
+  # is exercised by the backend-integration job once that lands.
+  # ---------------------------------------------------------------
+  backend-unit:
+    name: backend-unit (offline synthetics)
+    runs-on: ubuntu-latest
+    env:
+      # Dummy values to satisfy import-time pydantic Settings validation only.
+      # No real connection is made by the offline synthetics suite.
+      DATABASE_URL: postgresql+asyncpg://ci:ci@localhost:5432/ci
+      REDIS_URL: redis://localhost:6379/0
+      ANTHROPIC_API_KEY: ci-placeholder-not-used-offline
+      APP_ENV: ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run offline backend unit tests (synthetics)
+        run: |
+          pytest tests/synthetics/ -v \
+            --deselect "tests/synthetics/test_cli.py::TestMain::test_run_crawler_not_implemented"
+
+  # ---------------------------------------------------------------
+  # REAL: frontend build + unit tests + lint.
+  # React 19 + Vite 8. eslint (flat config) and vitest are both configured.
+  # `npm ci` requires package-lock.json, which is committed.
+  # ---------------------------------------------------------------
+  frontend-build-test:
+    name: frontend-build-test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint (eslint)
+        run: npm run lint
+
+      - name: Build (vite)
+        run: npm run build
+
+      - name: Unit tests (vitest, non-watch)
+        run: npm test -- --run
+
+  # ---------------------------------------------------------------
+  # PLACEHOLDER / SCAFFOLD: backend integration tests.
+  # ------------------------------------------------------------------
+  # This job is NOT real coverage yet. It boots the real service containers
+  # (postgres:15 + redis:7, matching docker-compose.yml) so the integration
+  # wiring is proven and ready to fill, but it does NOT run integration tests
+  # because the backend runtime decision is pending this session.
+  #
+  # It prints an explicit "pending" message and exits 0. The gap is therefore
+  # VISIBLE in the logs — do not mistake this green check for working
+  # integration coverage. See README TODO: wire real integration/e2e/load
+  # tests here once the backend runtime lands.
+  # ---------------------------------------------------------------
+  backend-integration:
+    name: backend-integration (PLACEHOLDER — pending backend runtime)
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: talent_agent
+          POSTGRES_USER: talent_agent
+          POSTGRES_PASSWORD: talent_agent_dev
+        ports:
+          - 5432:5432
+        # Wait for postgres to accept connections before steps run.
+        options: >-
+          --health-cmd "pg_isready -U talent_agent"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+asyncpg://talent_agent:talent_agent_dev@localhost:5432/talent_agent
+      REDIS_URL: redis://localhost:6379/0
+      ANTHROPIC_API_KEY: ci-placeholder-not-used-yet
+      APP_ENV: ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # SCAFFOLD STEP — replace with real migration + integration test run
+      # once the backend runtime decision lands. Intentionally exits 0.
+      - name: Integration tests (pending backend runtime)
+        run: |
+          echo "Integration tests pending: wire to live backend (gates 2-5). Tracked for runtime-decision."
+          echo "Service containers (postgres:15, redis:7) booted OK — wiring is ready to fill."
+          exit 0

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { getMe, getToken, setToken, clearAuth as clearAuthStorage } from '../lib/api'
+import { getMe } from '../api/auth'
+import { getToken, setToken, clearToken as clearAuthStorage } from '../api/client'
 
 const AuthContext = createContext(null)
 

@@ -17,6 +17,7 @@
  */
 
 import { routes } from '../lib/routes'
+import { resolveMock } from './mock'
 
 // ─── Toast Event System ──────────────────────────────────────────────────────
 // Custom event pattern for toast notifications. The UI layer (frontend-agent)
@@ -67,6 +68,14 @@ const JWT_STORAGE_KEY = 'talent-agent-jwt'
  * Per NUTRIENTS.md: Env vars use VITE_* prefix per Vite's import.meta.env convention.
  */
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
+
+/**
+ * Mock mode flag.
+ * When VITE_MOCK=true the client short-circuits network requests with seeded
+ * fixture data (see mock.ts) so the app is navigable without a live backend.
+ * Per CLAUDE.md Rule 13, real pages still show error states for unmocked paths.
+ */
+const USE_MOCK = import.meta.env.VITE_MOCK === 'true'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -176,6 +185,19 @@ export const apiClient = {
    */
   async request<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
     const { body, skipAuth = false, ...fetchOptions } = options
+
+    // Mock seam — short-circuit at the network boundary when VITE_MOCK=true.
+    // Matches on HTTP method + pathname; returns the RAW backend response shape
+    // so downstream transforms (e.g. verifyToken) run normally on mock data.
+    // Unmatched paths fall through to a real fetch (pages then show error states).
+    if (USE_MOCK) {
+      const method = fetchOptions.method ?? 'GET'
+      const [pathname, search = ''] = path.split('?')
+      const result = await resolveMock(method, pathname, search ? `?${search}` : '')
+      if (result.matched) {
+        return result.data as T
+      }
+    }
 
     // Build headers
     const headers = new Headers(fetchOptions.headers)

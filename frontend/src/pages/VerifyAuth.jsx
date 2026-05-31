@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { verifyMagicLink } from '../lib/api'
+import { verifyToken } from '../api/auth'
 import { useAuth } from '../context/AuthContext'
 import { routes } from '../lib/routes'
 
@@ -14,10 +14,10 @@ export default function VerifyAuth() {
     const token = searchParams.get('token')
     if (!token) { setError('No token found in the link'); return }
 
-    verifyMagicLink(token)
+    verifyToken(token)
       .then((res) => {
-        login(res.access_token, { id: res.user_id, email: res.email, is_onboarded: res.is_onboarded })
-        navigate(res.is_onboarded ? routes.overview : routes.onboarding, { replace: true })
+        login(res.accessToken, res.user)
+        navigate(res.isOnboarded ? routes.overview : routes.onboarding, { replace: true })
       })
       .catch((err) => setError(err.message || 'Failed to verify link'))
   }, [searchParams, login, navigate])

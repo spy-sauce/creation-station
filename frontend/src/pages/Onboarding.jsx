@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { uploadResume, saveProfile } from '../lib/api'
+import { uploadResume, saveProfile } from '../api/onboarding'
 import { useAuth } from '../context/AuthContext'
 import { routes } from '../lib/routes'
 

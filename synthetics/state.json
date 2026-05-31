@@ -1,22 +1,22 @@
 {
   "greenhouse": {
     "status": "green",
-    "consecutive_failures": 1,
+    "consecutive_failures": 2,
     "last_success": null,
-    "last_failure": "2026-05-31T00:28:10.171244+00:00",
+    "last_failure": "2026-05-31T14:26:17.640553+00:00",
     "last_error": "HTTP 404"
   },
   "lever": {
     "status": "green",
-    "consecutive_failures": 1,
+    "consecutive_failures": 2,
     "last_success": null,
-    "last_failure": "2026-05-31T00:28:12.627516+00:00",
+    "last_failure": "2026-05-31T14:26:18.172491+00:00",
     "last_error": "Schema validation failed"
   },
   "ashby": {
     "status": "green",
     "consecutive_failures": 0,
-    "last_success": "2026-05-31T00:28:13.159607+00:00",
+    "last_success": "2026-05-31T14:26:18.447518+00:00",
     "last_failure": null,
     "last_error": null
   }
