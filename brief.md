@@ -194,7 +194,7 @@ Wall-clock estimate: ~6 minutes based on iter-5's 27.7min/13leaves ratio scaled 
 ## How to run
 
 ```bash
-cd /Users/spy/mfautomations/repos/creation-station/reverse-search
+cd /Users/spy/ToledoTech/repos/creation-station/reverse-search
 
 # Single wave — all 6 leaves can germinate against frozen contracts
 mycelium cultivate --only-biome synthetics-fix-agent -c 3
