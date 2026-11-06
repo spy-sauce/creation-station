@@ -250,7 +250,7 @@ Inherited from global + project guardrails:
 Single-call pipeline:
 
 ```bash
-cd /Users/spy/mfautomation/repos/creation-station/reverse-search
+cd /Users/spy/repos/creation-station/reverse-search
 mycelium ddp \
   --brief ./vibespace-framework/brief.md \
   --stack nextjs-fastapi-supabase \
@@ -279,8 +279,8 @@ Verifies the brief decomposes cleanly into the six VSF/* HYPHAE before burning a
 - **HYPHA format reference:** `./hyphae/HYPHA-AUTH.md` (any of the 10 frozen TA contracts)
 - **Repo CLAUDE.md:** `./CLAUDE.md`
 - **Global VibeSpace CLAUDE.md:** `/Users/spy/.claude/CLAUDE.md`
-- **Mycelium framework source:** `/Users/spy/mfautomation/repos/legendary-funicular/`
-- **Mycelium orchestrator + 30/60/90:** `/Users/spy/mfautomation/mycelium-orchestrator/`
+- **Mycelium framework source:** `/Users/spy/repos/legendary-funicular/`
+- **Mycelium orchestrator + 30/60/90:** `/Users/spy/repos/mycelium-orchestrator/`
 - **Digital Dash pipeline (CI integration target):** `./digital-dash-pipeline.yml`
 - **TA iter-2 brief (parallel cultivation, does not block this one):** `./brief.md`
 
