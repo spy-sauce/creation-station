@@ -86,13 +86,13 @@ The repo uses `--stack nextjs-fastapi-supabase` as a label only — the real sta
 All commits, PR titles, and HYPHA notes use the format:
 
 ```
-MF/DOMAIN: description
+CS/DOMAIN: description
 ```
 
 Examples:
-- `MF/DISCOVERY: implement _publish_status helper`
-- `MF/SCHEDULER: wire Celery beat daily task`
-- `MF/API-STREAMING: add SSE event stream endpoint`
+- `CS/DISCOVERY: implement _publish_status helper`
+- `CS/SCHEDULER: wire Celery beat daily task`
+- `CS/API-STREAMING: add SSE event stream endpoint`
 
 ---
 
